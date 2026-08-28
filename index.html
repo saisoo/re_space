@@ -117,16 +117,19 @@
     <div id="canvasWrap" class="relative rounded-xl border border-slate-200" style="height:66vh;">
       <div id="canvas" class="relative"></div>
     </div>
+
+    <div class="mt-4 pt-4 border-t border-slate-100">
+      <div class="flex items-center justify-between mb-2 px-1">
+        <h2 class="text-sm font-extrabold text-slate-700">건물 전체 배치도 <span id="overviewZoneName" class="text-slate-400 font-semibold"></span></h2>
+        <p class="text-[11px] text-slate-400">전 층 실시간 미리보기 · 클릭 시 해당 층으로 이동</p>
+      </div>
+      <div id="buildingOverview" class="flex flex-wrap gap-3"></div>
+    </div>
   </section>
 
   <!-- 우측 분석 패널 -->
   <aside class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 max-h-[78vh] overflow-y-auto scrollbar-thin space-y-5">
     <div id="editPanel"></div>
-
-    <div>
-      <h3 class="text-sm font-extrabold text-slate-700 mb-2">스마트 검증</h3>
-      <div id="warningBox" class="space-y-1.5"></div>
-    </div>
 
     <div>
       <h3 class="text-sm font-extrabold text-slate-700 mb-2">현재 층 배치 리스트</h3>
@@ -174,9 +177,6 @@ const CATEGORY_META = {
   common:    { label:"공용/휴게/신규 공간",   color:"#99f6e4", border:"#14b8a6" },
 };
 
-// 소음/고전력 발생 실습실로 취급되는 이름 키워드
-const NOISY_KEYWORDS = ["VR콘텐츠디자인실","멀티미디어실","출력실","실습실"]; // '실습실'은 과도호출 방지위해 아래서 개별 플래그로 관리
-
 // 좌측 팔레트 버튼 구성
 const PALETTE = [
   { key:"fixed", items:[
@@ -188,8 +188,8 @@ const PALETTE = [
   { key:"design", items:[
       {name:"시각디자인실"},
       {name:"캐릭터제작실"},
-      {name:"VR콘텐츠디자인실", noisy:true},
-      {name:"멀티미디어실", noisy:true},
+      {name:"VR콘텐츠디자인실"},
+      {name:"멀티미디어실"},
       {name:"미술실"},
   ]},
   { key:"swit", items:[
@@ -276,8 +276,8 @@ const ROOM_DATA = {
       R("소규모학습실","177","admin"),
       R("시각디자인실","179","design"),
       R("캐릭터제작실","180","design"),
-      R("멀티미디어실","181","design",{noisy:true}),
-      R("VR콘텐츠디자인실","182","design",{noisy:true}),
+      R("멀티미디어실","181","design"),
+      R("VR콘텐츠디자인실","182","design"),
       R("계단","","fixed",{fixed:true}),
       R("화장실(여)","","fixed",{fixed:true}),
       R("학습1실","171","common"),
@@ -350,11 +350,11 @@ const ROOM_DATA = {
       R("1-8","219","classroom"), R("1-9","220","classroom"),
       R("계단","","fixed",{fixed:true}),
       R("학년운영부","221","admin"), R("과학준비실","222","special"),
-      R("과학실","223","special",{noisy:true}), R("화장실(남)","","fixed",{fixed:true}),
+      R("과학실","223","special"), R("화장실(남)","","fixed",{fixed:true}),
     ],
     1: [
       R("영어실","211","special"), R("방과후교실","212","common"),
-      R("학생자치실","213","common"), R("방송실","214","fixed",{fixed:true,noisy:true}),
+      R("학생자치실","213","common"), R("방송실","214","fixed",{fixed:true}),
       R("1-5","215","classroom"), R("2-5","216","classroom"),
       R("2-1","217","classroom"), R("2-2","218","classroom"),
       R("현관","","fixed",{fixed:true}), R("화장실(여)","","fixed",{fixed:true}), R("화장실(남)","","fixed",{fixed:true}),
@@ -441,7 +441,7 @@ function autoLayout(items){
     if(col + size.w > COLS){ col = 0; row += rowH; rowH = 0; }
     out.push(Object.assign({
       id: newId(), col, row, w:size.w, h:size.h,
-      fixed: !!it.fixed, noisy: !!it.noisy,
+      fixed: !!it.fixed,
     }, { name: it.name, num: it.num || "", category: it.category }));
     col += size.w;
     rowH = Math.max(rowH, size.h);
@@ -504,7 +504,7 @@ function renderPalette(){
       b.style.background = meta.color + "55";
       b.style.borderColor = meta.border + "66";
       b.draggable = true;
-      b.innerHTML = `<span class="swatch" style="background:${meta.color};border-color:${meta.border}"></span>${item.name}${item.noisy?' <span class="text-[10px] text-rose-500 font-bold" title="소음/고전력 유발 가능">[소음]</span>':''}`;
+      b.innerHTML = `<span class="swatch" style="background:${meta.color};border-color:${meta.border}"></span>${item.name}`;
       b.addEventListener("click", ()=> addBlockFromPalette(group.key, item));
       b.addEventListener("dragstart", ev=>{
         ev.dataTransfer.setData("text/plain", JSON.stringify({cat:group.key, item}));
@@ -540,7 +540,7 @@ function addBlockFromPalette(category, item){
   list.push({
     id: newId(), name:item.name, num:"", category,
     col:spot.col, row:spot.row, w:size.w, h:size.h,
-    fixed: !!item.fixed, noisy: !!item.noisy,
+    fixed: !!item.fixed,
   });
   selectedId = null;
   renderAll();
@@ -584,7 +584,6 @@ function renderCanvas(){
 
     div.innerHTML = `
       ${b.fixed?'<span class="badge">고정</span>':''}
-      ${b.noisy?'<span class="badge" style="left:auto;right:4px;">소음</span>':''}
       <div class="name">${b.name}</div>
       ${b.num?`<div class="num">#${b.num}</div>`:""}
     `;
@@ -598,10 +597,65 @@ function renderCanvas(){
     canvasEl.appendChild(div);
   });
 
-  renderWarnings(list);
   renderList(list);
   renderEditPanel();
   renderGlobalStat();
+  renderBuildingOverview();
+}
+
+/* =========================================================
+   6-1. 건물 전체 배치도 (현재 동의 전 층 실시간 미리보기)
+========================================================= */
+const overviewEl = document.getElementById("buildingOverview");
+const overviewZoneNameEl = document.getElementById("overviewZoneName");
+const MINI_CELL = 7;
+
+function renderBuildingOverview(){
+  overviewZoneNameEl.textContent = "· " + ZONE_META[currentZone].name;
+  overviewEl.innerHTML = "";
+  ZONE_META[currentZone].floors.slice().reverse().forEach(f=>{
+    const list = state[currentZone][f];
+    const {maxCol, maxRow} = gridBounds(list);
+    const w = maxCol * MINI_CELL, h = maxRow * MINI_CELL;
+    const isActive = f === currentFloor;
+
+    const card = document.createElement("div");
+    card.className = "rounded-xl border-2 p-2 cursor-pointer transition hover:shadow-md " +
+      (isActive ? "border-slate-900 bg-slate-50" : "border-slate-200 bg-white");
+
+    const header = document.createElement("div");
+    header.className = "text-[11px] font-extrabold text-slate-600 mb-1.5 flex items-center justify-between gap-3";
+    header.innerHTML = `<span>${f}층</span><span class="text-slate-400 font-semibold">${list.length}개</span>`;
+    card.appendChild(header);
+
+    const mini = document.createElement("div");
+    mini.className = "relative rounded-md bg-slate-50 border border-slate-100";
+    mini.style.width = w + "px";
+    mini.style.height = h + "px";
+    list.forEach(b=>{
+      const rect = document.createElement("div");
+      rect.title = b.name;
+      rect.style.position = "absolute";
+      rect.style.left = (b.col*MINI_CELL) + "px";
+      rect.style.top = (b.row*MINI_CELL) + "px";
+      rect.style.width = Math.max(2, b.w*MINI_CELL - 1) + "px";
+      rect.style.height = Math.max(2, b.h*MINI_CELL - 1) + "px";
+      rect.style.background = CATEGORY_META[b.category].color;
+      rect.style.border = "1px solid " + CATEGORY_META[b.category].border;
+      rect.style.borderRadius = "2px";
+      mini.appendChild(rect);
+    });
+    card.appendChild(mini);
+    card.style.minWidth = Math.max(w + 16, 96) + "px";
+
+    card.onclick = ()=>{
+      currentFloor = f;
+      selectedId = null;
+      renderFloorTabs();
+      renderCanvas();
+    };
+    overviewEl.appendChild(card);
+  });
 }
 
 let dragCtx = null;
@@ -677,7 +731,7 @@ canvasEl.addEventListener("drop", ev=>{
   col = Math.max(0, col); row = Math.max(0, row);
   currentBlocks().push({
     id:newId(), name:item.name, num:"", category:cat,
-    col, row, w:size.w, h:size.h, fixed:!!item.fixed, noisy:!!item.noisy,
+    col, row, w:size.w, h:size.h, fixed:!!item.fixed,
   });
   renderCanvas();
 });
@@ -739,9 +793,6 @@ function renderEditPanel(){
         <label class="flex items-center gap-1.5 text-[11px] font-bold text-slate-500">
           <input id="editFixed" type="checkbox" ${b.fixed?"checked":""}> 이동 금지(고정)
         </label>
-        <label class="flex items-center gap-1.5 text-[11px] font-bold text-slate-500">
-          <input id="editNoisy" type="checkbox" ${b.noisy?"checked":""}> 소음/고전력
-        </label>
       </div>
       <button id="editDelete" class="w-full mt-1 text-xs font-bold bg-rose-50 text-rose-500 rounded-lg py-1.5 hover:bg-rose-100">이 블록 삭제</button>
     </div>
@@ -752,40 +803,11 @@ function renderEditPanel(){
   document.getElementById("editW").onchange = e=>{ b.w = Math.max(1, parseInt(e.target.value)||1); renderCanvas(); };
   document.getElementById("editH").onchange = e=>{ b.h = Math.max(1, parseInt(e.target.value)||1); renderCanvas(); };
   document.getElementById("editFixed").onchange = e=>{ b.fixed = e.target.checked; renderCanvas(); };
-  document.getElementById("editNoisy").onchange = e=>{ b.noisy = e.target.checked; renderCanvas(); };
   document.getElementById("editDelete").onclick = ()=> deleteBlock(b.id);
 }
 
 /* =========================================================
-   8. 우측 - 스마트 검증 (인접 경고)
-========================================================= */
-function isAdjacent(a, b){
-  const horiz = (a.row < b.row + b.h && a.row + a.h > b.row) && (a.col + a.w === b.col || b.col + b.w === a.col);
-  const vert  = (a.col < b.col + b.w && a.col + a.w > b.col) && (a.row + a.h === b.row || b.row + b.h === a.row);
-  return horiz || vert;
-}
-
-function renderWarnings(list){
-  const box = document.getElementById("warningBox");
-  const noisy = list.filter(b=>b.noisy);
-  const classrooms = list.filter(b=>b.category==="classroom");
-  const warnings = [];
-  noisy.forEach(n=>{
-    classrooms.forEach(c=>{
-      if(isAdjacent(n,c)){
-        warnings.push(`<b>${n.name}</b>(소음/고전력)이 일반교실 <b>${c.name}</b> 바로 옆에 배치되어 있어요. 소음 민원 가능성이 있으니 재배치를 검토하세요.`);
-      }
-    });
-  });
-  if(warnings.length===0){
-    box.innerHTML = `<div class="text-[12px] text-emerald-600 bg-emerald-50 rounded-lg px-3 py-2">현재 층에서 인접 충돌이 발견되지 않았습니다.</div>`;
-  } else {
-    box.innerHTML = warnings.map(w=>`<div class="text-[12px] text-rose-600 bg-rose-50 rounded-lg px-3 py-2 leading-snug">${w}</div>`).join("");
-  }
-}
-
-/* =========================================================
-   9. 우측 - 리스트 / 통계
+   8. 우측 - 리스트 / 통계
 ========================================================= */
 function renderList(list){
   const ul = document.getElementById("listBox");
@@ -798,7 +820,7 @@ function renderList(list){
     li.innerHTML = `
       <span class="flex items-center gap-1.5 truncate">
         <span class="swatch" style="background:${CATEGORY_META[b.category].color};border-color:${CATEGORY_META[b.category].border}"></span>
-        <span class="truncate">${b.name}${b.fixed?" (고정)":""}${b.noisy?" (소음)":""}</span>
+        <span class="truncate">${b.name}${b.fixed?" (고정)":""}</span>
       </span>
       <span class="text-slate-400 flex-shrink-0">${b.w*b.h*UNIT_AREA}㎡</span>
     `;
@@ -825,7 +847,7 @@ function renderGlobalStat(){
 }
 
 /* =========================================================
-   10. 상단 유틸리티 - 실제배치 불러오기 / 초기화 / 저장 / 이미지
+   9. 상단 유틸리티 - 실제배치 불러오기 / 초기화 / 저장 / 이미지
 ========================================================= */
 document.getElementById("btnLoadReal").onclick = ()=>{
   const data = (ROOM_DATA[currentZone] && ROOM_DATA[currentZone][currentFloor]) || [];
@@ -904,7 +926,7 @@ document.getElementById("btnExportImg").onclick = ()=>{
 };
 
 /* =========================================================
-   11. 초기 실행
+   10. 초기 실행
 ========================================================= */
 function renderAll(){
   renderZoneTabs();
@@ -913,8 +935,13 @@ function renderAll(){
   renderCanvas();
 }
 
-// 최초 진입 시 창조관 1층 참고 배치를 자동으로 불러와 회의에서 바로 보여줄 수 있게 함
-state.C[1] = autoLayout(ROOM_DATA.C[1]);
+// 최초 접속 시 2026학년도 교사 배치도 데이터를 모든 동·층에 반영해
+// '현재 배치도' 상태 그대로 시작하도록 함 (건물 전체 배치도에도 즉시 반영됨)
+Object.keys(ROOM_DATA).forEach(z=>{
+  Object.keys(ROOM_DATA[z]).forEach(f=>{
+    state[z][Number(f)] = autoLayout(ROOM_DATA[z][f]);
+  });
+});
 renderAll();
 
 })();
