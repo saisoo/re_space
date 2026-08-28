@@ -1,0 +1,923 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>덕영고 공간재구조화 인터랙티브 시뮬레이터</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  * { font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, 'Malgun Gothic', sans-serif; }
+
+  #canvasWrap { overflow: auto; background:
+      linear-gradient(90deg, #eef1f6 1px, transparent 1px),
+      linear-gradient(#eef1f6 1px, transparent 1px);
+    background-size: 64px 64px;
+    background-color: #fafbfd;
+  }
+
+  .block {
+    position: absolute;
+    border-radius: 10px;
+    border-width: 2px;
+    border-style: solid;
+    box-shadow: 0 1px 3px rgba(15,23,42,.08);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    padding: 4px 6px;
+    cursor: grab;
+    user-select: none;
+    transition: box-shadow .12s ease, transform .05s ease;
+    overflow: hidden;
+  }
+  .block:hover { box-shadow: 0 4px 10px rgba(15,23,42,.16); }
+  .block.selected { outline: 3px solid #0f172a; outline-offset: 1px; z-index: 30; }
+  .block.dragging { cursor: grabbing; z-index: 40; opacity: .92; }
+  .block.fixedBlock { cursor: not-allowed; }
+  .block .name { font-weight: 700; font-size: 12px; line-height: 1.2; word-break: keep-all; }
+  .block .num { font-size: 10px; opacity: .6; margin-top: 1px; }
+  .block .badge { position: absolute; top: 3px; left: 4px; font-size: 9px; font-weight: 800; letter-spacing: .02em; padding: 1px 4px; border-radius: 4px; background: rgba(15,23,42,.12); color: #334155; }
+  .resizeHandle {
+    position: absolute; right: 2px; bottom: 2px; width: 12px; height: 12px;
+    cursor: nwse-resize; border-radius: 3px; background: rgba(15,23,42,.28);
+  }
+  .resizeHandle:hover { background: rgba(15,23,42,.55); }
+
+  .tabBtn { transition: all .12s ease; }
+  .tabBtn.active { background: #0f172a; color: #fff; box-shadow: 0 2px 6px rgba(15,23,42,.25); }
+
+  .sidebarBtn {
+    display:flex; align-items:center; gap:8px; width:100%; text-align:left;
+    padding:7px 10px; border-radius:8px; font-size:13px; font-weight:600;
+    border:1.5px solid transparent; cursor:grab; transition:.1s;
+  }
+  .sidebarBtn:hover { transform: translateX(2px); }
+  .swatch { width:12px; height:12px; border-radius:4px; flex-shrink:0; border:1.5px solid rgba(0,0,0,.15); }
+
+  .scrollbar-thin::-webkit-scrollbar { width:7px; height:7px; }
+  .scrollbar-thin::-webkit-scrollbar-thumb { background:#cbd5e1; border-radius:8px; }
+  .scrollbar-thin::-webkit-scrollbar-track { background:transparent; }
+</style>
+</head>
+<body class="bg-slate-100 text-slate-800 min-h-screen">
+
+<!-- ===== 상단 유틸리티 바 ===== -->
+<header class="bg-white border-b border-slate-200 px-5 py-3 flex flex-wrap items-center justify-between gap-3 sticky top-0 z-50 shadow-sm">
+  <div class="flex items-center gap-3">
+    <div class="w-9 h-9 rounded-xl bg-slate-900 text-white flex items-center justify-center font-extrabold text-sm">덕</div>
+    <div>
+      <h1 class="text-base font-extrabold text-slate-900 leading-tight">덕영고 공간재구조화 인터랙티브 시뮬레이터</h1>
+      <p class="text-[11px] text-slate-400 leading-tight">2026학년도 교사 배치도 기반 · 회의용 실시간 배치 기획 도구</p>
+    </div>
+  </div>
+  <div class="flex items-center gap-2 flex-wrap">
+    <button id="btnLoadReal" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-indigo-600 text-white hover:bg-indigo-700 flex items-center gap-1.5">
+      현재 층 실제 배치 불러오기
+    </button>
+    <button id="btnResetFloor" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200">현재 층 초기화</button>
+    <button id="btnResetAll" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-rose-50 text-rose-500 hover:bg-rose-100">전체 초기화</button>
+    <div class="w-px h-6 bg-slate-200 mx-1"></div>
+    <button id="btnSaveJson" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200">JSON 저장</button>
+    <button id="btnLoadJson" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200">JSON 불러오기</button>
+    <input type="file" id="fileInput" accept=".json" class="hidden">
+    <button id="btnExportImg" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-emerald-600 text-white hover:bg-emerald-700">배치도 이미지 저장</button>
+  </div>
+</header>
+
+<!-- ===== 동 / 층 탭 ===== -->
+<div class="bg-white border-b border-slate-200 px-5 py-2.5 flex flex-wrap items-center gap-4 sticky top-[57px] z-40">
+  <div id="zoneTabs" class="flex gap-1.5 bg-slate-100 p-1 rounded-xl"></div>
+  <div class="w-px h-6 bg-slate-200 hidden sm:block"></div>
+  <div id="floorTabs" class="flex gap-1.5 bg-slate-100 p-1 rounded-xl"></div>
+  <div class="ml-auto text-[11px] text-slate-400">그리드 1칸 ≈ 4㎡ (계획 참고용 · 실측 아님)</div>
+</div>
+
+<!-- ===== 메인 레이아웃 ===== -->
+<main class="grid grid-cols-1 lg:grid-cols-[240px_1fr_300px] gap-4 p-4 items-start">
+
+  <!-- 좌측 패널 -->
+  <aside class="bg-white rounded-2xl border border-slate-200 shadow-sm p-3 max-h-[78vh] overflow-y-auto scrollbar-thin space-y-4">
+    <div>
+      <p class="text-[11px] font-bold text-slate-400 px-1 mb-1">공간 블록을 클릭하거나 캔버스로 드래그하세요</p>
+    </div>
+    <div id="paletteRoot" class="space-y-4"></div>
+  </aside>
+
+  <!-- 중앙 캔버스 -->
+  <section class="bg-white rounded-2xl border border-slate-200 shadow-sm p-3">
+    <div class="flex items-center justify-between mb-2 px-1">
+      <h2 id="canvasTitle" class="text-sm font-extrabold text-slate-700"></h2>
+      <p class="text-[11px] text-slate-400">블록 클릭: 선택/편집 · 드래그: 이동 · 우측 하단 손잡이: 크기 조절 · Delete키: 삭제</p>
+    </div>
+    <div id="canvasWrap" class="relative rounded-xl border border-slate-200" style="height:66vh;">
+      <div id="canvas" class="relative"></div>
+    </div>
+  </section>
+
+  <!-- 우측 분석 패널 -->
+  <aside class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 max-h-[78vh] overflow-y-auto scrollbar-thin space-y-5">
+    <div id="editPanel"></div>
+
+    <div>
+      <h3 class="text-sm font-extrabold text-slate-700 mb-2">스마트 검증</h3>
+      <div id="warningBox" class="space-y-1.5"></div>
+    </div>
+
+    <div>
+      <h3 class="text-sm font-extrabold text-slate-700 mb-2">현재 층 배치 리스트</h3>
+      <div class="flex items-center justify-between text-xs bg-slate-50 rounded-lg px-3 py-2 mb-2 font-bold text-slate-600">
+        <span>배치 수 <span id="statCount">0</span>개</span>
+        <span>면적 합계 <span id="statArea">0</span>㎡</span>
+      </div>
+      <ul id="listBox" class="space-y-1 text-[12.5px]"></ul>
+    </div>
+
+    <div>
+      <h3 class="text-sm font-extrabold text-slate-700 mb-2">전체(全동·全층) 요약</h3>
+      <div class="text-xs bg-slate-50 rounded-lg px-3 py-2 text-slate-600 font-semibold" id="globalStat"></div>
+    </div>
+  </aside>
+</main>
+
+<script>
+(function(){
+"use strict";
+
+/* =========================================================
+   1. 기본 데이터 정의
+========================================================= */
+const CELL = 68;      // 셀 1개 픽셀 크기
+const COLS = 12;       // 자동배치 시 사용하는 기준 열 수
+const UNIT_AREA = 4;   // 1칸 = 4㎡ (참고용)
+
+const ZONE_META = {
+  C: { name: "창조관", floors: [1,2,3,4] },
+  V: { name: "비전관", floors: [1,2,3] },
+  W: { name: "서관",   floors: [1,2,3,4] },
+  E: { name: "동관",   floors: [1,2] },
+  D: { name: "덕영관", floors: [1] },
+};
+
+const CATEGORY_META = {
+  fixed:     { label:"고정 구역",            color:"#d9dde3", border:"#9aa1ac" },
+  design:    { label:"디자인/미디어 실습실",  color:"#fbcfe8", border:"#ec4899" },
+  swit:      { label:"SW/IT/회계 실습실",     color:"#bae6fd", border:"#0ea5e9" },
+  special:   { label:"특별교육/외국어실",     color:"#ddd6fe", border:"#8b5cf6" },
+  classroom: { label:"일반교실",              color:"#fde68a", border:"#f59e0b" },
+  admin:     { label:"행정/교무 공간",        color:"#c7d2fe", border:"#6366f1" },
+  health:    { label:"보건/간호 실습실",      color:"#bbf7d0", border:"#22c55e" },
+  common:    { label:"공용/휴게/신규 공간",   color:"#99f6e4", border:"#14b8a6" },
+};
+
+// 소음/고전력 발생 실습실로 취급되는 이름 키워드
+const NOISY_KEYWORDS = ["VR콘텐츠디자인실","멀티미디어실","출력실","실습실"]; // '실습실'은 과도호출 방지위해 아래서 개별 플래그로 관리
+
+// 좌측 팔레트 버튼 구성
+const PALETTE = [
+  { key:"fixed", items:[
+      {name:"계단", fixed:true},
+      {name:"화장실", fixed:true},
+      {name:"엘리베이터", fixed:true},
+      {name:"보일러실", fixed:true},
+  ]},
+  { key:"design", items:[
+      {name:"시각디자인실"},
+      {name:"캐릭터제작실"},
+      {name:"VR콘텐츠디자인실", noisy:true},
+      {name:"멀티미디어실", noisy:true},
+      {name:"미술실"},
+  ]},
+  { key:"swit", items:[
+      {name:"컴퓨터보안실"},
+      {name:"데이터베이스실"},
+      {name:"빅데이터분석실"},
+      {name:"전자상거래실무실"},
+      {name:"회계실무실"},
+  ]},
+  { key:"special", items:[
+      {name:"과학실"},
+      {name:"음악실"},
+      {name:"영어실"},
+      {name:"방송실"},
+  ]},
+  { key:"classroom", items:[
+      {name:"일반교실"},
+  ]},
+  { key:"admin", items:[
+      {name:"교무실"},
+      {name:"행정실"},
+      {name:"진로상담실"},
+  ]},
+  { key:"health", items:[
+      {name:"보건실"},
+      {name:"간호실습실"},
+  ]},
+  { key:"common", items:[
+      {name:"메이커스페이스", size:{w:3,h:2}},
+      {name:"학생휴게실"},
+      {name:"휴게 및 전시실", size:{w:3,h:2}},
+      {name:"북카페/도서관", size:{w:3,h:2}},
+      {name:"비전룸"},
+  ]},
+];
+
+/* =========================================================
+   2. 실제 교사 배치도(2026) 기반 초기 데이터
+   (문서 상 나열 순서를 기준으로 층별 클러스터를 근사 배정한
+    "계획 참고용" 스캐폴드입니다 — 실제 위치와 정확히 일치하지
+    않을 수 있으며, 불러온 뒤 자유롭게 재배치할 수 있습니다.)
+========================================================= */
+function R(name, num, category, opt){ return Object.assign({name, num, category}, opt||{}); }
+
+const ROOM_DATA = {
+  C: {
+    4: [
+      R("기자재실","196","fixed",{fixed:true}),
+      R("계단","","fixed",{fixed:true}),
+      R("소프트웨어부","193","admin"),
+      R("소규모학습실","193","admin"),
+      R("데이터베이스1실","194","swit"),
+      R("데이터베이스2실","195","swit"),
+      R("정보보호관리실","197","swit"),
+      R("빅데이터분석실","198","swit"),
+      R("정보통신실","159","fixed",{fixed:true}),
+      R("화장실(여)","","fixed",{fixed:true}),
+      R("계단","","fixed",{fixed:true}),
+    ],
+    3: [
+      R("경영회계부","188","admin"),
+      R("소규모학습실","188","admin"),
+      R("회계실무1실","189","swit"),
+      R("회계실무2실","190","swit"),
+      R("세무실무실","191","swit"),
+      R("전자상거래실무실","192","swit"),
+      R("계단","","fixed",{fixed:true}),
+      R("화장실(남)","","fixed",{fixed:true}),
+      R("계단","","fixed",{fixed:true}),
+    ],
+    2: [
+      R("교육정보부","183","admin"),
+      R("소규모학습실","183","admin"),
+      R("컴퓨터보안1실","184","swit"),
+      R("컴퓨터보안2실","185","swit"),
+      R("사무행정실","186","swit"),
+      R("총무실","187","admin"),
+      R("계단","","fixed",{fixed:true}),
+      R("화장실(여)","","fixed",{fixed:true}),
+      R("계단","","fixed",{fixed:true}),
+    ],
+    1: [
+      R("그래픽SW부","177","admin"),
+      R("소규모학습실","177","admin"),
+      R("시각디자인실","179","design"),
+      R("캐릭터제작실","180","design"),
+      R("멀티미디어실","181","design",{noisy:true}),
+      R("VR콘텐츠디자인실","182","design",{noisy:true}),
+      R("계단","","fixed",{fixed:true}),
+      R("화장실(여)","","fixed",{fixed:true}),
+      R("학습1실","171","common"),
+      R("학습2실","172","common"),
+      R("휴게 및 전시실","173","common",{size:{w:3,h:2}}),
+      R("일본어실","174","special"),
+      R("중국어실","174-2","special"),
+      R("화장실(남)","175","fixed",{fixed:true}),
+      R("음악실","166","special"),
+      R("다목적회의실(산학협력실)","167","common"),
+      R("비전룸","168","common"),
+      R("북카페/도서관","169","common",{size:{w:3,h:2}}),
+      R("바리스타실","170","common"),
+      R("현관","","fixed",{fixed:true}),
+    ],
+  },
+  V: {
+    1: [
+      R("일시적 관찰실","113","admin"),
+      R("성적처리실","114","admin"),
+      R("인쇄실","115","admin"),
+      R("직업교육부","116","admin"),
+      R("교장실","117","admin"),
+      R("숙직실","118","admin"),
+      R("행정실","119","admin"),
+      R("법인실","120","admin"),
+      R("학부모회의실","123","admin"),
+      R("큰 교무실","124","admin",{size:{w:3,h:2}}),
+      R("인쇄 문서고","144","fixed",{fixed:true}),
+      R("진로체험공간(Space-X)","111","common"),
+      R("공실","112","fixed",{fixed:true}),
+      R("계단","","fixed",{fixed:true}),
+      R("현관","","fixed",{fixed:true}),
+    ],
+    2: [
+      R("2-3","135","classroom"),
+      R("2-4","136","classroom"),
+      R("2-6","137","classroom"),
+      R("2-7","138","classroom"),
+      R("2-8","139","classroom"),
+      R("2-9","140","classroom"),
+      R("미래협력부","141","admin"),
+      R("진로진학부(진로상담실)","142","admin"),
+      R("위클래스/성고충상담실","143","admin"),
+      R("계단","","fixed",{fixed:true}),
+    ],
+    3: [
+      R("3-1","126","classroom"), R("3-2","127","classroom"),
+      R("3-3","128","classroom"), R("3-4","129","classroom"),
+      R("3-5","130","classroom"), R("3-6","131","classroom"),
+      R("3-7","132","classroom"), R("3-8","133","classroom"),
+      R("3-9","134","classroom"),
+      R("계단","","fixed",{fixed:true}),
+    ],
+  },
+  W: {
+    4: [
+      R("1-1","228","classroom"), R("1-2","229","classroom"),
+      R("계단","","fixed",{fixed:true}),
+      R("1-3","230","classroom"), R("1-4","231","classroom"),
+      R("화장실(여)","","fixed",{fixed:true}), R("화장실(남)","","fixed",{fixed:true}),
+    ],
+    3: [
+      R("1-6","224","classroom"), R("1-7","225","classroom"),
+      R("계단","","fixed",{fixed:true}),
+      R("학생생활안전부","226","admin"), R("미술실","227","design"),
+      R("화장실(여)","","fixed",{fixed:true}), R("화장실(남)","","fixed",{fixed:true}),
+    ],
+    2: [
+      R("1-8","219","classroom"), R("1-9","220","classroom"),
+      R("계단","","fixed",{fixed:true}),
+      R("학년운영부","221","admin"), R("과학준비실","222","special"),
+      R("과학실","223","special",{noisy:true}), R("화장실(남)","","fixed",{fixed:true}),
+    ],
+    1: [
+      R("영어실","211","special"), R("방과후교실","212","common"),
+      R("학생자치실","213","common"), R("방송실","214","fixed",{fixed:true,noisy:true}),
+      R("1-5","215","classroom"), R("2-5","216","classroom"),
+      R("2-1","217","classroom"), R("2-2","218","classroom"),
+      R("현관","","fixed",{fixed:true}), R("화장실(여)","","fixed",{fixed:true}), R("화장실(남)","","fixed",{fixed:true}),
+    ],
+  },
+  E: {
+    1: [
+      R("보일러실","151","fixed",{fixed:true}),
+      R("문서고 및 창고","152","fixed",{fixed:true}),
+      R("보건실","153","health"),
+      R("보건교무실","154","admin"),
+      R("소규모학습실(보건)","154","admin"),
+      R("화장실(여)","","fixed",{fixed:true}), R("화장실(남)","","fixed",{fixed:true}),
+    ],
+    2: [
+      R("기초간호임상실무실","155","health"),
+      R("간호의기초실","156","health"),
+      R("요양지원실","157","health"),
+      R("메이커스페이스","158","common",{size:{w:3,h:2}}),
+      R("화장실(남,여)","","fixed",{fixed:true}),
+    ],
+  },
+  D: {
+    1: [
+      R("체육관","243","common",{fixed:true,size:{w:4,h:3}}),
+      R("조리실/식당","242","common",{fixed:true,size:{w:3,h:2}}),
+      R("필로티","","fixed",{fixed:true}),
+      R("통학로","","fixed",{fixed:true}),
+      R("계단","","fixed",{fixed:true}), R("계단","","fixed",{fixed:true}),
+    ],
+  },
+};
+
+/* =========================================================
+   3. 상태 관리
+========================================================= */
+let idSeq = 1;
+function newId(){ return "b" + (idSeq++); }
+
+function emptyState(){
+  const s = {};
+  Object.keys(ZONE_META).forEach(z=>{
+    s[z] = {};
+    ZONE_META[z].floors.forEach(f=> s[z][f] = []);
+  });
+  return s;
+}
+let state = emptyState();
+let currentZone = "C";
+let currentFloor = 1;
+let selectedId = null;
+
+function currentBlocks(){ return state[currentZone][currentFloor]; }
+
+function defaultSize(category, name, override){
+  if(override) return override;
+  if(category === "fixed") return {w:1,h:1};
+  return {w:2,h:2};
+}
+
+/* 겹치지 않는 빈 자리 탐색 */
+function overlaps(col,row,w,h,list,ignoreId){
+  for(const b of list){
+    if(b.id === ignoreId) continue;
+    if(col < b.col + b.w && col + w > b.col && row < b.row + b.h && row + h > b.row) return true;
+  }
+  return false;
+}
+function findFreeSpot(w,h,list){
+  for(let row=0; row<300; row++){
+    for(let col=0; col<=COLS-w; col++){
+      if(!overlaps(col,row,w,h,list)) return {col,row};
+    }
+  }
+  return {col:0,row:0};
+}
+
+/* 실제 배치 데이터를 자동으로 그리드에 흘려 배치 */
+function autoLayout(items){
+  let col=0, row=0, rowH=0;
+  const out = [];
+  items.forEach(it=>{
+    const size = it.size || defaultSize(it.category, it.name);
+    if(col + size.w > COLS){ col = 0; row += rowH; rowH = 0; }
+    out.push(Object.assign({
+      id: newId(), col, row, w:size.w, h:size.h,
+      fixed: !!it.fixed, noisy: !!it.noisy,
+    }, { name: it.name, num: it.num || "", category: it.category }));
+    col += size.w;
+    rowH = Math.max(rowH, size.h);
+  });
+  return out;
+}
+
+/* =========================================================
+   4. 렌더링 - 탭
+========================================================= */
+const zoneTabsEl = document.getElementById("zoneTabs");
+const floorTabsEl = document.getElementById("floorTabs");
+
+function renderZoneTabs(){
+  zoneTabsEl.innerHTML = "";
+  Object.keys(ZONE_META).forEach(z=>{
+    const btn = document.createElement("button");
+    btn.className = "tabBtn px-3.5 py-1.5 rounded-lg text-xs font-bold text-slate-500" + (z===currentZone?" active":"");
+    btn.textContent = ZONE_META[z].name;
+    btn.onclick = ()=>{
+      currentZone = z;
+      if(!ZONE_META[z].floors.includes(currentFloor)) currentFloor = ZONE_META[z].floors[0];
+      selectedId = null;
+      renderAll();
+    };
+    zoneTabsEl.appendChild(btn);
+  });
+}
+
+function renderFloorTabs(){
+  floorTabsEl.innerHTML = "";
+  ZONE_META[currentZone].floors.forEach(f=>{
+    const btn = document.createElement("button");
+    btn.className = "tabBtn px-3.5 py-1.5 rounded-lg text-xs font-bold text-slate-500" + (f===currentFloor?" active":"");
+    btn.textContent = f + "층";
+    btn.onclick = ()=>{ currentFloor = f; selectedId = null; renderAll(); };
+    floorTabsEl.appendChild(btn);
+  });
+}
+
+/* =========================================================
+   5. 렌더링 - 좌측 팔레트
+========================================================= */
+const paletteRoot = document.getElementById("paletteRoot");
+function renderPalette(){
+  paletteRoot.innerHTML = "";
+  PALETTE.forEach(group=>{
+    const meta = CATEGORY_META[group.key];
+    const wrap = document.createElement("div");
+    const title = document.createElement("p");
+    title.className = "text-[11.5px] font-extrabold text-slate-500 px-1 mb-1.5 flex items-center gap-1.5";
+    title.innerHTML = `<span class="swatch" style="background:${meta.color};border-color:${meta.border}"></span>${meta.label}`;
+    wrap.appendChild(title);
+
+    const list = document.createElement("div");
+    list.className = "space-y-1";
+    group.items.forEach(item=>{
+      const b = document.createElement("button");
+      b.className = "sidebarBtn";
+      b.style.background = meta.color + "55";
+      b.style.borderColor = meta.border + "66";
+      b.draggable = true;
+      b.innerHTML = `<span class="swatch" style="background:${meta.color};border-color:${meta.border}"></span>${item.name}${item.noisy?' <span class="text-[10px] text-rose-500 font-bold" title="소음/고전력 유발 가능">[소음]</span>':''}`;
+      b.addEventListener("click", ()=> addBlockFromPalette(group.key, item));
+      b.addEventListener("dragstart", ev=>{
+        ev.dataTransfer.setData("text/plain", JSON.stringify({cat:group.key, item}));
+      });
+      list.appendChild(b);
+    });
+    wrap.appendChild(list);
+    paletteRoot.appendChild(wrap);
+
+    if(group.key === "common"){
+      const customWrap = document.createElement("div");
+      customWrap.className = "flex gap-1 mt-1.5";
+      customWrap.innerHTML = `
+        <input id="customName" type="text" placeholder="신규 공간 이름" class="flex-1 min-w-0 text-[11.5px] border border-slate-200 rounded-lg px-2 py-1.5">
+        <button id="customAddBtn" class="text-[11.5px] font-bold bg-teal-500 text-white px-2.5 rounded-lg hover:bg-teal-600">추가</button>`;
+      wrap.appendChild(customWrap);
+    }
+  });
+
+  document.getElementById("customAddBtn").onclick = ()=>{
+    const input = document.getElementById("customName");
+    const v = input.value.trim();
+    if(!v) return;
+    addBlockFromPalette("common", {name:v});
+    input.value = "";
+  };
+}
+
+function addBlockFromPalette(category, item){
+  const list = currentBlocks();
+  const size = item.size || defaultSize(category, item.name);
+  const spot = findFreeSpot(size.w, size.h, list);
+  list.push({
+    id: newId(), name:item.name, num:"", category,
+    col:spot.col, row:spot.row, w:size.w, h:size.h,
+    fixed: !!item.fixed, noisy: !!item.noisy,
+  });
+  selectedId = null;
+  renderAll();
+}
+
+/* =========================================================
+   6. 렌더링 - 캔버스 (블록 드래그 / 리사이즈 / 선택)
+========================================================= */
+const canvasEl = document.getElementById("canvas");
+const canvasWrapEl = document.getElementById("canvasWrap");
+const canvasTitleEl = document.getElementById("canvasTitle");
+
+function gridBounds(list){
+  let maxCol = COLS, maxRow = 8;
+  list.forEach(b=>{
+    maxCol = Math.max(maxCol, b.col + b.w + 1);
+    maxRow = Math.max(maxRow, b.row + b.h + 1);
+  });
+  return {maxCol, maxRow};
+}
+
+function renderCanvas(){
+  canvasTitleEl.textContent = `${ZONE_META[currentZone].name} · ${currentFloor}층 배치도`;
+  const list = currentBlocks();
+  const {maxCol, maxRow} = gridBounds(list);
+  canvasEl.style.width = (maxCol*CELL) + "px";
+  canvasEl.style.height = (maxRow*CELL) + "px";
+  canvasEl.innerHTML = "";
+
+  list.forEach(b=>{
+    const meta = CATEGORY_META[b.category];
+    const div = document.createElement("div");
+    div.className = "block" + (b.id===selectedId?" selected":"") + (b.fixed?" fixedBlock":"");
+    div.style.left = (b.col*CELL) + "px";
+    div.style.top = (b.row*CELL) + "px";
+    div.style.width = (b.w*CELL - 5) + "px";
+    div.style.height = (b.h*CELL - 5) + "px";
+    div.style.background = meta.color;
+    div.style.borderColor = meta.border;
+    div.dataset.id = b.id;
+
+    div.innerHTML = `
+      ${b.fixed?'<span class="badge">고정</span>':''}
+      ${b.noisy?'<span class="badge" style="left:auto;right:4px;">소음</span>':''}
+      <div class="name">${b.name}</div>
+      ${b.num?`<div class="num">#${b.num}</div>`:""}
+    `;
+    if(!b.fixed){
+      const handle = document.createElement("div");
+      handle.className = "resizeHandle";
+      handle.addEventListener("mousedown", ev=> startResize(ev, b));
+      div.appendChild(handle);
+    }
+    div.addEventListener("mousedown", ev=> startDrag(ev, b));
+    canvasEl.appendChild(div);
+  });
+
+  renderWarnings(list);
+  renderList(list);
+  renderEditPanel();
+  renderGlobalStat();
+}
+
+let dragCtx = null;
+function startDrag(ev, block){
+  ev.preventDefault();
+  const startX = ev.clientX, startY = ev.clientY;
+  const startLeft = block.col*CELL, startTop = block.row*CELL;
+  let moved = false;
+  const el = canvasEl.querySelector(`[data-id="${block.id}"]`);
+
+  function onMove(e){
+    const dx = e.clientX - startX, dy = e.clientY - startY;
+    if(Math.abs(dx) > 4 || Math.abs(dy) > 4) moved = true;
+    if(!moved || block.fixed) return;
+    el.classList.add("dragging");
+    el.style.left = (startLeft + dx) + "px";
+    el.style.top = (startTop + dy) + "px";
+  }
+  function onUp(e){
+    document.removeEventListener("mousemove", onMove);
+    document.removeEventListener("mouseup", onUp);
+    if(moved && !block.fixed){
+      const dx = e.clientX - startX, dy = e.clientY - startY;
+      let newCol = Math.round((startLeft+dx)/CELL);
+      let newRow = Math.round((startTop+dy)/CELL);
+      newCol = Math.max(0, newCol);
+      newRow = Math.max(0, newRow);
+      block.col = newCol; block.row = newRow;
+      renderCanvas();
+    } else {
+      selectedId = block.id;
+      renderCanvas();
+    }
+  }
+  document.addEventListener("mousemove", onMove);
+  document.addEventListener("mouseup", onUp);
+}
+
+function startResize(ev, block){
+  ev.preventDefault(); ev.stopPropagation();
+  const startX = ev.clientX, startY = ev.clientY;
+  const startW = block.w, startH = block.h;
+  const el = canvasEl.querySelector(`[data-id="${block.id}"]`);
+  function onMove(e){
+    const dx = e.clientX - startX, dy = e.clientY - startY;
+    const newW = Math.max(1, startW + Math.round(dx/CELL));
+    const newH = Math.max(1, startH + Math.round(dy/CELL));
+    el.style.width = (newW*CELL-5)+"px";
+    el.style.height = (newH*CELL-5)+"px";
+    el._pendingW = newW; el._pendingH = newH;
+  }
+  function onUp(){
+    document.removeEventListener("mousemove", onMove);
+    document.removeEventListener("mouseup", onUp);
+    if(el._pendingW){ block.w = el._pendingW; block.h = el._pendingH; }
+    selectedId = block.id;
+    renderCanvas();
+  }
+  document.addEventListener("mousemove", onMove);
+  document.addEventListener("mouseup", onUp);
+}
+
+canvasEl.addEventListener("dragover", ev=> ev.preventDefault());
+canvasEl.addEventListener("drop", ev=>{
+  ev.preventDefault();
+  const raw = ev.dataTransfer.getData("text/plain");
+  if(!raw) return;
+  const {cat, item} = JSON.parse(raw);
+  const rect = canvasEl.getBoundingClientRect();
+  const size = item.size || defaultSize(cat, item.name);
+  let col = Math.round((ev.clientX - rect.left)/CELL);
+  let row = Math.round((ev.clientY - rect.top)/CELL);
+  col = Math.max(0, col); row = Math.max(0, row);
+  currentBlocks().push({
+    id:newId(), name:item.name, num:"", category:cat,
+    col, row, w:size.w, h:size.h, fixed:!!item.fixed, noisy:!!item.noisy,
+  });
+  renderCanvas();
+});
+
+canvasWrapEl.addEventListener("mousedown", ev=>{
+  if(ev.target === canvasWrapEl || ev.target === canvasEl){
+    selectedId = null;
+    renderCanvas();
+  }
+});
+
+document.addEventListener("keydown", ev=>{
+  if(ev.key === "Delete" || ev.key === "Backspace"){
+    if(selectedId && document.activeElement.tagName !== "INPUT"){
+      deleteBlock(selectedId);
+    }
+  }
+});
+
+function deleteBlock(id){
+  const list = currentBlocks();
+  const idx = list.findIndex(b=>b.id===id);
+  if(idx>-1) list.splice(idx,1);
+  selectedId = null;
+  renderCanvas();
+}
+
+/* =========================================================
+   7. 우측 - 선택 블록 편집 패널
+========================================================= */
+function renderEditPanel(){
+  const panel = document.getElementById("editPanel");
+  const b = currentBlocks().find(x=>x.id===selectedId);
+  if(!b){
+    panel.innerHTML = `<div class="text-xs text-slate-400 bg-slate-50 rounded-lg px-3 py-3">캔버스에서 블록을 클릭하면<br>이름 변경 · 크기 조절 · 삭제를 할 수 있어요.</div>`;
+    return;
+  }
+  const catOptions = Object.entries(CATEGORY_META).map(([k,m])=>
+    `<option value="${k}" ${k===b.category?"selected":""}>${m.label}</option>`).join("");
+
+  panel.innerHTML = `
+    <h3 class="text-sm font-extrabold text-slate-700 mb-2">선택된 공간 편집</h3>
+    <div class="bg-slate-50 rounded-xl p-3 space-y-2">
+      <label class="block text-[11px] font-bold text-slate-500">이름
+        <input id="editName" type="text" value="${b.name.replace(/"/g,'&quot;')}" class="mt-1 w-full text-xs border border-slate-200 rounded-lg px-2 py-1.5">
+      </label>
+      <label class="block text-[11px] font-bold text-slate-500">카테고리
+        <select id="editCategory" class="mt-1 w-full text-xs border border-slate-200 rounded-lg px-2 py-1.5">${catOptions}</select>
+      </label>
+      <div class="flex gap-2">
+        <label class="flex-1 text-[11px] font-bold text-slate-500">가로(칸)
+          <input id="editW" type="number" min="1" max="12" value="${b.w}" class="mt-1 w-full text-xs border border-slate-200 rounded-lg px-2 py-1.5">
+        </label>
+        <label class="flex-1 text-[11px] font-bold text-slate-500">세로(칸)
+          <input id="editH" type="number" min="1" max="12" value="${b.h}" class="mt-1 w-full text-xs border border-slate-200 rounded-lg px-2 py-1.5">
+        </label>
+      </div>
+      <div class="flex items-center gap-4 pt-1">
+        <label class="flex items-center gap-1.5 text-[11px] font-bold text-slate-500">
+          <input id="editFixed" type="checkbox" ${b.fixed?"checked":""}> 이동 금지(고정)
+        </label>
+        <label class="flex items-center gap-1.5 text-[11px] font-bold text-slate-500">
+          <input id="editNoisy" type="checkbox" ${b.noisy?"checked":""}> 소음/고전력
+        </label>
+      </div>
+      <button id="editDelete" class="w-full mt-1 text-xs font-bold bg-rose-50 text-rose-500 rounded-lg py-1.5 hover:bg-rose-100">이 블록 삭제</button>
+    </div>
+  `;
+
+  document.getElementById("editName").oninput = e=>{ b.name = e.target.value; renderCanvas(); };
+  document.getElementById("editCategory").onchange = e=>{ b.category = e.target.value; renderCanvas(); };
+  document.getElementById("editW").onchange = e=>{ b.w = Math.max(1, parseInt(e.target.value)||1); renderCanvas(); };
+  document.getElementById("editH").onchange = e=>{ b.h = Math.max(1, parseInt(e.target.value)||1); renderCanvas(); };
+  document.getElementById("editFixed").onchange = e=>{ b.fixed = e.target.checked; renderCanvas(); };
+  document.getElementById("editNoisy").onchange = e=>{ b.noisy = e.target.checked; renderCanvas(); };
+  document.getElementById("editDelete").onclick = ()=> deleteBlock(b.id);
+}
+
+/* =========================================================
+   8. 우측 - 스마트 검증 (인접 경고)
+========================================================= */
+function isAdjacent(a, b){
+  const horiz = (a.row < b.row + b.h && a.row + a.h > b.row) && (a.col + a.w === b.col || b.col + b.w === a.col);
+  const vert  = (a.col < b.col + b.w && a.col + a.w > b.col) && (a.row + a.h === b.row || b.row + b.h === a.row);
+  return horiz || vert;
+}
+
+function renderWarnings(list){
+  const box = document.getElementById("warningBox");
+  const noisy = list.filter(b=>b.noisy);
+  const classrooms = list.filter(b=>b.category==="classroom");
+  const warnings = [];
+  noisy.forEach(n=>{
+    classrooms.forEach(c=>{
+      if(isAdjacent(n,c)){
+        warnings.push(`<b>${n.name}</b>(소음/고전력)이 일반교실 <b>${c.name}</b> 바로 옆에 배치되어 있어요. 소음 민원 가능성이 있으니 재배치를 검토하세요.`);
+      }
+    });
+  });
+  if(warnings.length===0){
+    box.innerHTML = `<div class="text-[12px] text-emerald-600 bg-emerald-50 rounded-lg px-3 py-2">현재 층에서 인접 충돌이 발견되지 않았습니다.</div>`;
+  } else {
+    box.innerHTML = warnings.map(w=>`<div class="text-[12px] text-rose-600 bg-rose-50 rounded-lg px-3 py-2 leading-snug">${w}</div>`).join("");
+  }
+}
+
+/* =========================================================
+   9. 우측 - 리스트 / 통계
+========================================================= */
+function renderList(list){
+  const ul = document.getElementById("listBox");
+  ul.innerHTML = "";
+  let area = 0;
+  list.slice().sort((a,b)=> a.row-b.row || a.col-b.col).forEach(b=>{
+    area += b.w*b.h*UNIT_AREA;
+    const li = document.createElement("li");
+    li.className = "flex items-center justify-between gap-2 px-2 py-1.5 rounded-lg hover:bg-slate-50 cursor-pointer" + (b.id===selectedId?" bg-slate-100":"");
+    li.innerHTML = `
+      <span class="flex items-center gap-1.5 truncate">
+        <span class="swatch" style="background:${CATEGORY_META[b.category].color};border-color:${CATEGORY_META[b.category].border}"></span>
+        <span class="truncate">${b.name}${b.fixed?" (고정)":""}${b.noisy?" (소음)":""}</span>
+      </span>
+      <span class="text-slate-400 flex-shrink-0">${b.w*b.h*UNIT_AREA}㎡</span>
+    `;
+    li.onclick = ()=>{ selectedId = b.id; renderCanvas(); };
+    ul.appendChild(li);
+  });
+  document.getElementById("statCount").textContent = list.length;
+  document.getElementById("statArea").textContent = area.toLocaleString();
+}
+
+function renderGlobalStat(){
+  let totalBlocks = 0, totalArea = 0;
+  const perZone = [];
+  Object.keys(ZONE_META).forEach(z=>{
+    let zc = 0, za = 0;
+    ZONE_META[z].floors.forEach(f=>{
+      state[z][f].forEach(b=>{ zc++; za += b.w*b.h*UNIT_AREA; });
+    });
+    totalBlocks += zc; totalArea += za;
+    perZone.push(`${ZONE_META[z].name} ${zc}개 · ${za.toLocaleString()}㎡`);
+  });
+  document.getElementById("globalStat").innerHTML =
+    `총 ${totalBlocks}개 공간 · ${totalArea.toLocaleString()}㎡<br><span class="text-slate-400 font-normal">${perZone.join(" · ")}</span>`;
+}
+
+/* =========================================================
+   10. 상단 유틸리티 - 실제배치 불러오기 / 초기화 / 저장 / 이미지
+========================================================= */
+document.getElementById("btnLoadReal").onclick = ()=>{
+  const data = (ROOM_DATA[currentZone] && ROOM_DATA[currentZone][currentFloor]) || [];
+  if(data.length===0){ alert("이 층에 대한 참고 배치 데이터가 없습니다."); return; }
+  if(currentBlocks().length>0){
+    if(!confirm("현재 층의 배치를 지우고 2026학년도 교사 배치도 기준 참고 배치를 불러올까요?")) return;
+  }
+  state[currentZone][currentFloor] = autoLayout(data);
+  selectedId = null;
+  renderCanvas();
+};
+
+document.getElementById("btnResetFloor").onclick = ()=>{
+  if(!confirm(`${ZONE_META[currentZone].name} ${currentFloor}층 배치를 모두 지울까요?`)) return;
+  state[currentZone][currentFloor] = [];
+  selectedId = null;
+  renderCanvas();
+};
+
+document.getElementById("btnResetAll").onclick = ()=>{
+  if(!confirm("전체 동/층의 모든 배치를 초기화할까요? 이 작업은 되돌릴 수 없습니다.")) return;
+  state = emptyState();
+  selectedId = null;
+  renderCanvas();
+};
+
+document.getElementById("btnSaveJson").onclick = ()=>{
+  const payload = { savedAt: new Date().toISOString(), state };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], {type:"application/json"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  const ts = new Date().toISOString().slice(0,10).replace(/-/g,"");
+  a.href = url; a.download = `덕영고_공간배치_${ts}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+};
+
+document.getElementById("btnLoadJson").onclick = ()=> document.getElementById("fileInput").click();
+document.getElementById("fileInput").onchange = ev=>{
+  const file = ev.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = e=>{
+    try{
+      const parsed = JSON.parse(e.target.result);
+      const loaded = parsed.state || parsed;
+      Object.keys(ZONE_META).forEach(z=>{
+        if(!loaded[z]) loaded[z] = {};
+        ZONE_META[z].floors.forEach(f=>{ if(!loaded[z][f]) loaded[z][f] = []; });
+      });
+      state = loaded;
+      let maxId = 0;
+      Object.values(state).forEach(zone=>Object.values(zone).forEach(list=>list.forEach(b=>{
+        const n = parseInt(String(b.id).replace(/\D/g,""))||0;
+        if(n>maxId) maxId = n;
+      })));
+      idSeq = maxId + 1;
+      selectedId = null;
+      renderCanvas();
+      alert("배치 데이터를 불러왔습니다.");
+    }catch(err){
+      alert("JSON 파일을 읽는 중 오류가 발생했습니다: " + err.message);
+    }
+  };
+  reader.readAsText(file);
+  ev.target.value = "";
+};
+
+document.getElementById("btnExportImg").onclick = ()=>{
+  html2canvas(canvasEl, {backgroundColor:"#fafbfd", scale:2}).then(canvas=>{
+    const a = document.createElement("a");
+    a.download = `${ZONE_META[currentZone].name}_${currentFloor}층_배치도.png`;
+    a.href = canvas.toDataURL("image/png");
+    a.click();
+  });
+};
+
+/* =========================================================
+   11. 초기 실행
+========================================================= */
+function renderAll(){
+  renderZoneTabs();
+  renderFloorTabs();
+  renderPalette();
+  renderCanvas();
+}
+
+// 최초 진입 시 창조관 1층 참고 배치를 자동으로 불러와 회의에서 바로 보여줄 수 있게 함
+state.C[1] = autoLayout(ROOM_DATA.C[1]);
+renderAll();
+
+})();
+</script>
+</body>
+</html>
