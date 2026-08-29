@@ -63,17 +63,14 @@
   .tabBtn.active { background: #0f172a; color: #fff; box-shadow: 0 2px 6px rgba(15,23,42,.25); }
 
   .sidebarBtn {
-    display:inline-flex; align-items:center; gap:6px; text-align:left; white-space:nowrap;
-    padding:5px 9px; border-radius:999px; font-size:12px; font-weight:600;
+    display:inline-flex; align-items:center; gap:4px; text-align:left; white-space:nowrap;
+    padding:2px 7px; border-radius:999px; font-size:10.5px; font-weight:600;
     border:1.5px solid transparent; cursor:grab; transition:.1s;
   }
   .sidebarBtn:hover { transform: translateY(-1px); }
   .swatch { width:11px; height:11px; border-radius:4px; flex-shrink:0; border:1.5px solid rgba(0,0,0,.15); }
 
   .rowLabel { display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:800; color:#64748b; background:#f1f5f9; border-radius:8px; letter-spacing:-.02em; text-align:center; padding:0 2px; }
-
-  #paletteBody { transition: max-height .15s ease, opacity .15s ease, padding .15s ease; }
-  #paletteBody.collapsed { max-height:0 !important; opacity:0; overflow:hidden; padding-top:0; padding-bottom:0; }
 
   .scrollbar-thin::-webkit-scrollbar { width:7px; height:7px; }
   .scrollbar-thin::-webkit-scrollbar-thumb { background:#cbd5e1; border-radius:8px; }
@@ -83,44 +80,47 @@
 <body class="bg-slate-100 text-slate-800 h-screen overflow-hidden flex flex-col">
 
 <!-- ===== 상단 유틸리티 바 ===== -->
-<header class="bg-white border-b border-slate-200 px-4 py-1.5 flex flex-wrap items-center justify-between gap-1.5 shadow-sm flex-shrink-0">
-  <div class="flex items-center gap-2">
+<header class="bg-white border-b border-slate-200 px-4 py-1 flex flex-wrap items-center gap-2 shadow-sm flex-shrink-0">
+  <div class="flex items-center gap-2 flex-shrink-0">
     <div class="w-6 h-6 rounded-md bg-slate-900 text-white flex items-center justify-center font-extrabold text-[10px] flex-shrink-0">덕</div>
-    <h1 class="hidden xl:block text-[11px] font-extrabold text-slate-900 leading-tight">덕영고 공간재구조화 인터랙티브 시뮬레이터</h1>
+    <h1 class="hidden 2xl:block text-[11px] font-extrabold text-slate-900 leading-tight">덕영고 공간재구조화 인터랙티브 시뮬레이터</h1>
   </div>
-  <div class="flex items-center gap-1 flex-wrap">
-    <button id="btnUndo" title="실행취소 (Ctrl+Z)" class="px-2 py-1.5 rounded-md text-[11px] font-bold bg-slate-100 text-slate-500 hover:bg-slate-200 disabled:opacity-35 disabled:hover:bg-slate-100">실행취소</button>
-    <button id="btnRedo" title="다시실행 (Ctrl+Y)" class="px-2 py-1.5 rounded-md text-[11px] font-bold bg-slate-100 text-slate-500 hover:bg-slate-200 disabled:opacity-35 disabled:hover:bg-slate-100">다시실행</button>
+  <div id="zoneTabs" class="flex gap-1 bg-slate-100 p-0.5 rounded-lg flex-shrink-0"></div>
+  <input id="searchInput" type="text" placeholder="이름·호실번호 검색 (현재 동)" class="text-[11px] border border-slate-200 rounded-full px-3 py-1 w-36 flex-shrink-0">
+  <div class="flex items-center gap-1 flex-wrap ml-auto">
+    <button id="btnUndo" title="실행취소 (Ctrl+Z)" class="px-2 py-1 rounded-md text-[11px] font-bold bg-slate-100 text-slate-500 hover:bg-slate-200 disabled:opacity-35 disabled:hover:bg-slate-100">실행취소</button>
+    <button id="btnRedo" title="다시실행 (Ctrl+Y)" class="px-2 py-1 rounded-md text-[11px] font-bold bg-slate-100 text-slate-500 hover:bg-slate-200 disabled:opacity-35 disabled:hover:bg-slate-100">다시실행</button>
     <div class="w-px h-4 bg-slate-200 mx-0.5"></div>
-    <button id="btnManage" class="px-2 py-1.5 rounded-md text-[11px] font-bold bg-slate-100 text-slate-600 hover:bg-slate-200">배치 리스트 · 도구</button>
-    <button id="btnDiffToggle" title="현재 배치를 2026 실제 배치와 비교" class="px-2 py-1.5 rounded-md text-[11px] font-bold bg-slate-100 text-slate-600 hover:bg-slate-200">변경 칸 표시: 끔</button>
+    <button id="btnManage" class="px-2 py-1 rounded-md text-[11px] font-bold bg-slate-100 text-slate-600 hover:bg-slate-200">배치 리스트 · 도구</button>
+    <button id="btnDiffToggle" title="현재 배치를 2026 실제 배치와 비교" class="px-2 py-1 rounded-md text-[11px] font-bold bg-slate-100 text-slate-600 hover:bg-slate-200">변경 칸 표시: 끔</button>
     <div class="w-px h-4 bg-slate-200 mx-0.5"></div>
-    <button id="btnLoadReal" class="px-2 py-1.5 rounded-md text-[11px] font-bold bg-indigo-600 text-white hover:bg-indigo-700">실제 배치로 재설정</button>
-    <button id="btnResetZone" class="px-2 py-1.5 rounded-md text-[11px] font-bold bg-slate-100 text-slate-600 hover:bg-slate-200">현재 동 비우기</button>
-    <button id="btnResetAll" class="px-2 py-1.5 rounded-md text-[11px] font-bold bg-rose-50 text-rose-500 hover:bg-rose-100">전체 초기화</button>
+    <button id="btnLoadReal" class="px-2 py-1 rounded-md text-[11px] font-bold bg-indigo-600 text-white hover:bg-indigo-700">실제 배치로 재설정</button>
+    <button id="btnResetZone" class="px-2 py-1 rounded-md text-[11px] font-bold bg-slate-100 text-slate-600 hover:bg-slate-200">현재 동 비우기</button>
+    <button id="btnResetAll" class="px-2 py-1 rounded-md text-[11px] font-bold bg-rose-50 text-rose-500 hover:bg-rose-100">전체 초기화</button>
     <div class="w-px h-4 bg-slate-200 mx-0.5"></div>
-    <button id="btnSaveJson" class="px-2 py-1.5 rounded-md text-[11px] font-bold bg-slate-100 text-slate-600 hover:bg-slate-200">JSON 저장</button>
-    <button id="btnLoadJson" class="px-2 py-1.5 rounded-md text-[11px] font-bold bg-slate-100 text-slate-600 hover:bg-slate-200">JSON 불러오기</button>
+    <button id="btnSaveJson" class="px-2 py-1 rounded-md text-[11px] font-bold bg-slate-100 text-slate-600 hover:bg-slate-200">JSON 저장</button>
+    <button id="btnLoadJson" class="px-2 py-1 rounded-md text-[11px] font-bold bg-slate-100 text-slate-600 hover:bg-slate-200">JSON 불러오기</button>
     <input type="file" id="fileInput" accept=".json" class="hidden">
-    <button id="btnExportImg" class="px-2 py-1.5 rounded-md text-[11px] font-bold bg-emerald-600 text-white hover:bg-emerald-700">이미지 저장</button>
+    <button id="btnExportImg" class="px-2 py-1 rounded-md text-[11px] font-bold bg-emerald-600 text-white hover:bg-emerald-700">이미지 저장</button>
   </div>
 </header>
 
-<!-- ===== 동 탭 + 검색 ===== -->
-<div class="bg-white border-b border-slate-200 px-4 py-1.5 flex flex-wrap items-center gap-2 flex-shrink-0">
-  <div id="zoneTabs" class="flex gap-1 bg-slate-100 p-0.5 rounded-lg"></div>
-  <input id="searchInput" type="text" placeholder="이름·호실번호 검색 (현재 동)" class="text-[11px] border border-slate-200 rounded-full px-3 py-1.5 w-44">
-  <div class="ml-auto text-[10px] text-slate-400">가로 1칸 ≈ 20㎡ · Ctrl+클릭: 다중 선택 · Ctrl+D: 복제</div>
-</div>
-
-<!-- ===== 메인: 캔버스가 화면 전체를 차지, 하단은 접이식 팔레트 ===== -->
+<!-- ===== 메인: 캔버스가 화면 전체를 차지, 하단은 팔레트 ===== -->
 <main class="flex-1 min-h-0 flex flex-col p-1.5 gap-1.5">
 
   <!-- 중앙 캔버스 (메인, 전체 폭, 스크롤 없이 항상 전체가 보이도록 반응형으로 크기 계산됨) -->
   <section class="flex-1 min-h-0 min-w-0 bg-white rounded-2xl border border-slate-200 shadow-sm p-2 flex flex-col">
-    <div class="flex items-center justify-between mb-1 px-1 flex-wrap gap-1 flex-shrink-0">
-      <h2 id="canvasTitle" class="text-sm font-extrabold text-slate-700"></h2>
-      <p class="text-[10px] text-slate-400">클릭: 선택/편집 팝업 열기 · 드래그: 이동 · 오른쪽 손잡이: 벽 허물고 면적 조정 · Shift+클릭: 병합 · Delete: 삭제</p>
+    <div class="flex items-center justify-between mb-1 px-1 flex-wrap gap-1.5 flex-shrink-0">
+      <div class="flex items-center gap-2 flex-shrink-0">
+        <h2 id="canvasTitle" class="text-sm font-extrabold text-slate-700"></h2>
+        <div class="flex items-center gap-1 bg-slate-50 rounded-lg px-1.5 py-0.5">
+          <span class="text-[10px] text-slate-400">여유 칸</span>
+          <button id="padColsMinus" title="여유 칸 줄이기(화면 커짐)" class="w-5 h-5 rounded bg-white border border-slate-200 hover:bg-slate-100 text-slate-600 font-bold text-xs leading-none">−</button>
+          <span id="padColsValue" class="text-[11px] font-bold text-slate-600 w-4 text-center">0</span>
+          <button id="padColsPlus" title="여유 칸 늘리기(화면 작아짐)" class="w-5 h-5 rounded bg-white border border-slate-200 hover:bg-slate-100 text-slate-600 font-bold text-xs leading-none">+</button>
+        </div>
+      </div>
+      <p class="text-[10px] text-slate-400 hidden lg:block">클릭: 선택/편집 팝업 열기 · 드래그: 이동 · 오른쪽 손잡이: 벽 허물고 면적 조정 · Shift+클릭: 병합 · Ctrl+클릭: 다중선택 · Ctrl+D: 복제 · Delete: 삭제 · 가로 1칸≈20㎡</p>
     </div>
     <div id="canvasWrap" class="relative rounded-xl border border-slate-200 flex-1 min-h-0">
       <div class="flex" style="min-height:100%;">
@@ -130,14 +130,14 @@
     </div>
   </section>
 
-  <!-- 하단 접이식 팔레트 스트립 (기본은 접힌 상태 — 캔버스를 최대한 크게) -->
-  <div class="flex-shrink-0 bg-white rounded-2xl border border-slate-200 shadow-sm">
-    <button id="paletteToggle" class="w-full flex items-center justify-between px-3 py-1.5 text-[11px] font-extrabold text-slate-600">
-      <span>공간 팔레트 — 클릭하거나 캔버스 빈 칸으로 드래그해서 배치</span>
-      <span id="paletteToggleIcon" class="text-slate-400">펼치기 ▸</span>
-    </button>
-    <div id="paletteBody" class="collapsed px-3 pb-2 overflow-y-auto scrollbar-thin" style="max-height:96px;">
-      <div id="paletteRoot" class="flex flex-wrap gap-1.5 items-center"></div>
+  <!-- 하단 팔레트 스트립: 높이 고정 — 여기서 늘어나거나 줄어들어도 건물 배치도 화면 크기는 바뀌지 않음 -->
+  <div class="flex-shrink-0 bg-white rounded-2xl border border-slate-200 shadow-sm px-3 py-1 flex flex-col" style="height:84px;">
+    <div class="flex items-center justify-between flex-shrink-0 mb-0.5">
+      <span class="text-[10px] font-extrabold text-slate-500">공간 팔레트</span>
+      <span class="text-[9px] text-slate-400 hidden sm:block">클릭하거나 캔버스 빈 칸으로 드래그해서 배치</span>
+    </div>
+    <div id="paletteBody" class="flex-1 min-h-0 overflow-y-auto scrollbar-thin">
+      <div id="paletteRoot" class="flex flex-wrap gap-1 items-center"></div>
     </div>
   </div>
 </main>
@@ -284,20 +284,32 @@ const PALETTE = [
 ========================================================= */
 function R(name, num, category, opt){ return Object.assign({name, num, category}, opt||{}); }
 
-const FLOORS_BY_ZONE = { C:[5,4,3,2,1,1.5,1.6,-1], V:[3,2,1,1.5,-1], W:[5,4,3,2,1], E:[3,2,1,-1], D:[1] };
-const FLOOR_LABEL_OVERRIDES = {
-  "C_1": "1층A",
-  "C_1.5": "1층B",
-  "C_1.6": "1층C",
-  "V_1": "1층A",
-  "V_1.5": "1층B",
+const FLOORS_BY_ZONE = {
+  C: [6,5,4,3,2,1,-1],
+  V: [6,5,4,3,2,1,-1],
+  W: [6,5,4,3,2,1,-1],
+  E: [6,5,4,3,2,1,-1],
+  D: [6,5,4,3,2,1,-1],
 };
+const FLOOR_LABEL_OVERRIDES = {};
 
 const ROOM_DATA = {
   C: {
+    6: [
+      R("음악실","166","special"),
+      R("다목적회의실(산학협력실)","167","common"),
+      R("비전룸","168","common"),
+      R("북카페/도서관","169","common",{size:{w:2}}),
+      R("바리스타실","170","common"),
+      R("현관","","fixed",{fixed:true}),
+    ],
     5: [
-      R("계단","","fixed",{fixed:true}),
-      R("화장실(여)","","fixed",{fixed:true}),
+      R("학습1실","171","common"),
+      R("학습2실","172","common"),
+      R("휴게 및 전시실","173","common",{size:{w:2}}),
+      R("일본어실","174","special"),
+      R("중국어실","174-2","special"),
+      R("화장실(남)","175","fixed",{fixed:true}),
     ],
     4: [
       R("기자재실","196","fixed",{fixed:true}),
@@ -344,22 +356,6 @@ const ROOM_DATA = {
       R("계단","","fixed",{fixed:true}),
       R("화장실(여)","","fixed",{fixed:true}),
     ],
-    1.5: [
-      R("학습1실","171","common"),
-      R("학습2실","172","common"),
-      R("휴게 및 전시실","173","common",{size:{w:2}}),
-      R("일본어실","174","special"),
-      R("중국어실","174-2","special"),
-      R("화장실(남)","175","fixed",{fixed:true}),
-    ],
-    1.6: [
-      R("음악실","166","special"),
-      R("다목적회의실(산학협력실)","167","common"),
-      R("비전룸","168","common"),
-      R("북카페/도서관","169","common",{size:{w:2}}),
-      R("바리스타실","170","common"),
-      R("현관","","fixed",{fixed:true}),
-    ],
     "-1": [
       R("계단","","fixed",{fixed:true}),
       R("기계실","","fixed",{fixed:true}),
@@ -367,6 +363,20 @@ const ROOM_DATA = {
     ],
   },
   V: {
+    6: [
+      R("계단","","fixed",{fixed:true}),
+    ],
+    5: [
+      R("계단","","fixed",{fixed:true}),
+    ],
+    4: [
+      R("숙직실","118","admin"),
+      R("행정실","119","admin"),
+      R("법인실","120","admin"),
+      R("학부모회의실","123","admin"),
+      R("큰 교무실","124","admin",{size:{w:2}}),
+      R("문서고","144","fixed",{fixed:true}),
+    ],
     3: [
       R("계단","","fixed",{fixed:true}),
       R("3-1","126","classroom"), R("3-2","127","classroom"),
@@ -398,14 +408,6 @@ const ROOM_DATA = {
       R("교장실","117","admin"),
       R("현관","","fixed",{fixed:true}),
     ],
-    1.5: [
-      R("숙직실","118","admin"),
-      R("행정실","119","admin"),
-      R("법인실","120","admin"),
-      R("학부모회의실","123","admin"),
-      R("큰 교무실","124","admin",{size:{w:2}}),
-      R("문서고","144","fixed",{fixed:true}),
-    ],
     "-1": [
       R("계단","","fixed",{fixed:true}),
       R("진로체험공간(Space-X)","111","common"),
@@ -413,6 +415,9 @@ const ROOM_DATA = {
     ],
   },
   W: {
+    6: [
+      R("계단","","fixed",{fixed:true}),
+    ],
     5: [
       R("계단","","fixed",{fixed:true}),
       R("화장실(여)","","fixed",{fixed:true}),
@@ -443,8 +448,20 @@ const ROOM_DATA = {
       R("2-1","217","classroom"), R("2-2","218","classroom"),
       R("현관","","fixed",{fixed:true}), R("화장실(여)","","fixed",{fixed:true}), R("화장실(남)","","fixed",{fixed:true}),
     ],
+    "-1": [
+      R("계단","","fixed",{fixed:true}),
+    ],
   },
   E: {
+    6: [
+      R("계단","","fixed",{fixed:true}),
+    ],
+    5: [
+      R("계단","","fixed",{fixed:true}),
+    ],
+    4: [
+      R("계단","","fixed",{fixed:true}),
+    ],
     3: [
       R("계단","","fixed",{fixed:true}),
       R("화장실(여)","","fixed",{fixed:true}),
@@ -467,6 +484,34 @@ const ROOM_DATA = {
     "-1": [
       R("계단","","fixed",{fixed:true}),
       R("보일러실","","fixed",{fixed:true}),
+    ],
+  },
+  D: {
+    6: [
+      R("계단","","fixed",{fixed:true}),
+    ],
+    5: [
+      R("계단","","fixed",{fixed:true}),
+    ],
+    4: [
+      R("계단","","fixed",{fixed:true}),
+    ],
+    3: [
+      R("계단","","fixed",{fixed:true}),
+    ],
+    2: [
+      R("계단","","fixed",{fixed:true}),
+    ],
+    1: [
+      R("계단","","fixed",{fixed:true}),
+      R("계단","","fixed",{fixed:true}),
+      R("필로티","","fixed",{fixed:true}),
+      R("통학로","","fixed",{fixed:true}),
+      R("체육관","243","common",{fixed:true}),
+      R("조리실/식당","242","common",{fixed:true}),
+    ],
+    "-1": [
+      R("계단","","fixed",{fixed:true}),
     ],
   },
 };
@@ -492,19 +537,6 @@ function buildRowBlocks(items, row){
 }
 
 function buildZoneGrid(zone){
-  if(zone === "D"){
-    const blocks = [
-      {id:newId(),row:0,col:0,w:1,h:1,name:"계단",num:"",category:"fixed",fixed:true},
-      {id:newId(),row:0,col:1,w:1,h:1,name:"계단",num:"",category:"fixed",fixed:true},
-      {id:newId(),row:0,col:2,w:1,h:3,name:"필로티",num:"",category:"fixed",fixed:true},
-      {id:newId(),row:0,col:3,w:1,h:3,name:"통학로",num:"",category:"fixed",fixed:true},
-      {id:newId(),row:1,col:0,w:1,h:1,name:"체육관",num:"243",category:"common",fixed:true},
-      {id:newId(),row:1,col:1,w:1,h:1,name:"조리실/식당",num:"242",category:"common",fixed:true},
-      {id:newId(),row:2,col:0,w:1,h:1,name:"계단",num:"",category:"fixed",fixed:true},
-      {id:newId(),row:2,col:1,w:1,h:1,name:"계단",num:"",category:"fixed",fixed:true},
-    ];
-    return { rows:3, cols:4+GRID_PAD_COLS, blocks, floors:[1,1,1] };
-  }
   const floors = FLOORS_BY_ZONE[zone];
   let allBlocks = [];
   let maxW = 0;
@@ -524,18 +556,6 @@ function emptyZoneGrid(zone){
 
 /* id를 소모하지 않는 순수 조회용 실제 배치 목록 (변경 칸 비교용) */
 function realLayoutBlocks(zone){
-  if(zone === "D"){
-    return [
-      {row:0,col:0,w:1,h:1,name:"계단",category:"fixed"},
-      {row:0,col:1,w:1,h:1,name:"계단",category:"fixed"},
-      {row:0,col:2,w:1,h:3,name:"필로티",category:"fixed"},
-      {row:0,col:3,w:1,h:3,name:"통학로",category:"fixed"},
-      {row:1,col:0,w:1,h:1,name:"체육관",category:"common"},
-      {row:1,col:1,w:1,h:1,name:"조리실/식당",category:"common"},
-      {row:2,col:0,w:1,h:1,name:"계단",category:"fixed"},
-      {row:2,col:1,w:1,h:1,name:"계단",category:"fixed"},
-    ];
-  }
   const floors = FLOORS_BY_ZONE[zone];
   const out = [];
   floors.forEach((f, i)=>{
@@ -642,7 +662,7 @@ function renderZoneTabs(){
   zoneTabsEl.innerHTML = "";
   Object.keys(ZONE_META).forEach(z=>{
     const btn = document.createElement("button");
-    btn.className = "tabBtn px-2.5 py-1.5 rounded-md text-[11px] font-bold text-slate-500" + (z===currentZone?" active":"");
+    btn.className = "tabBtn px-2 py-1 rounded-md text-[11px] font-bold text-slate-500" + (z===currentZone?" active":"");
     btn.textContent = ZONE_META[z].name;
     btn.onclick = ()=>{ currentZone = z; selectedId = null; selectedBlank = null; renderAll(); };
     zoneTabsEl.appendChild(btn);
@@ -660,8 +680,8 @@ function renderPalette(){
   const customWrap = document.createElement("span");
   customWrap.className = "flex gap-1 items-center flex-shrink-0";
   customWrap.innerHTML = `
-    <input id="customName" type="text" placeholder="신규 공간 이름" class="w-32 text-[11.5px] border border-slate-300 rounded-full px-2.5 py-1.5">
-    <button id="customAddBtn" class="text-[11.5px] font-bold bg-teal-500 text-white px-2.5 py-1.5 rounded-full hover:bg-teal-600 flex-shrink-0">추가</button>`;
+    <input id="customName" type="text" placeholder="신규 공간 이름" class="w-24 text-[10.5px] border border-slate-300 rounded-full px-2 py-0.5">
+    <button id="customAddBtn" class="text-[10.5px] font-bold bg-teal-500 text-white px-2 py-0.5 rounded-full hover:bg-teal-600 flex-shrink-0">추가</button>`;
   paletteRoot.appendChild(customWrap);
 
   const divider = document.createElement("span");
@@ -715,14 +735,6 @@ function addBlockFromPalette(category, item){
   renderCanvas();
 }
 
-/* ---- 하단 팔레트 접기/펼치기 ---- */
-const paletteBodyEl = document.getElementById("paletteBody");
-const paletteToggleIconEl = document.getElementById("paletteToggleIcon");
-document.getElementById("paletteToggle").onclick = ()=>{
-  const collapsed = paletteBodyEl.classList.toggle("collapsed");
-  paletteToggleIconEl.textContent = collapsed ? "펼치기 ▸" : "숨기기 ▾";
-};
-
 /* =========================================================
    7. 렌더링 - 캔버스 (건물 전체 그리드: 드래그 / 폭 조정 / 병합 / 선택)
 ========================================================= */
@@ -746,7 +758,7 @@ function renderRowLabels(zs){
     lab.style.width = "46px";
     lab.style.height = CELL_H + "px";
     const floorNum = zs.floors[r];
-    lab.textContent = currentZone === "D" ? "" : floorLabelText(currentZone, floorNum);
+    lab.textContent = floorLabelText(currentZone, floorNum);
     rowLabelsEl.appendChild(lab);
   }
 }
@@ -1191,7 +1203,7 @@ function renderList(zs){
     area += b.w*UNIT_AREA;
     const li = document.createElement("li");
     li.className = "flex items-center justify-between gap-2 px-2 py-1.5 rounded-lg hover:bg-slate-50 cursor-pointer" + (b.id===selectedId?" bg-slate-100":"");
-    const floorTxt = currentZone === "D" ? "" : `${floorLabelText(currentZone, zs.floors[b.row])} · `;
+    const floorTxt = `${floorLabelText(currentZone, zs.floors[b.row])} · `;
     if(b.note && b.note.trim()) li.title = "메모: " + b.note;
     li.innerHTML = `
       <span class="flex items-center gap-1.5 truncate">
@@ -1381,7 +1393,7 @@ document.getElementById("btnExportCsv").onclick = ()=>{
   Object.keys(ZONE_META).forEach(z=>{
     const zs = state[z];
     zs.blocks.slice().sort((a,b)=> a.row-b.row || a.col-b.col).forEach(b=>{
-      const floorTxt = z === "D" ? "" : floorLabelText(z, zs.floors[b.row]);
+      const floorTxt = floorLabelText(z, zs.floors[b.row]);
       rows.push([
         ZONE_META[z].name, floorTxt, b.name, b.num||"", (CATEGORY_META[b.category]||{}).label||b.category,
         b.w, b.w*UNIT_AREA, b.fixed?"고정":"", (b.note||"").replace(/\n/g," ")
