@@ -19,7 +19,7 @@
       linear-gradient(#eef1f6 1px, transparent 1px);
   }
 
-  .block {
+  .room-block {
     position: absolute;
     border-radius: 8px;
     border-width: 2px;
@@ -29,20 +29,22 @@
     flex-direction: column;
     justify-content: center;
     align-items: center;
-    text-align: center;
-    padding: 3px 5px;
+    padding: 2px 5px;
     cursor: grab;
     user-select: none;
     transition: box-shadow .12s ease;
     overflow: hidden;
   }
-  .block:hover { box-shadow: 0 4px 10px rgba(15,23,42,.18); }
-  .block.selected { outline: 3px solid #0f172a; outline-offset: 1px; z-index: 30; }
-  .block.dragging { cursor: grabbing; z-index: 40; opacity: .9; }
-  .block.fixedBlock { cursor: not-allowed; }
-  .block .name { font-weight: 700; font-size: 11.5px; line-height: 1.2; word-break: keep-all; }
-  .block .num { font-size: 9.5px; opacity: .6; margin-top: 1px; }
-  .block .badge { position:absolute; top:2px; left:3px; font-size:8.5px; font-weight:800; letter-spacing:.02em; padding:1px 3px; border-radius:4px; background:rgba(15,23,42,.14); color:#334155; }
+  .room-block:hover { box-shadow: 0 4px 10px rgba(15,23,42,.18); }
+  .room-block.selected { outline: 3px solid #0f172a; outline-offset: 1px; z-index: 30; }
+  .room-block.multiSelected { outline: 3px solid #2563eb; outline-offset: 1px; z-index: 29; }
+  .room-block.changedBlock { box-shadow: 0 0 0 2px #f59e0b inset; }
+  .room-block .noteDot { position:absolute; top:3px; right:3px; width:6px; height:6px; border-radius:50%; background:#0f172a; opacity:.55; }
+  .room-block.dragging { cursor: grabbing; z-index: 40; opacity: .9; }
+  .room-block.fixedBlock { cursor: not-allowed; }
+  .room-block .name { max-width:100%; font-weight: 700; font-size: 11px; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .room-block .num { max-width:100%; font-size: 9px; opacity: .6; line-height: 1.1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .room-block .badge { flex-shrink:0; font-size:8px; font-weight:800; letter-spacing:.02em; line-height:1.3; padding:0 4px; margin-bottom:1px; border-radius:4px; background:rgba(15,23,42,.14); color:#334155; }
 
   .blankCell {
     position:absolute; border-radius:8px; border:1.5px dashed #cbd5e1; background:rgba(255,255,255,.5);
@@ -53,7 +55,7 @@
 
   .resizeHandle {
     position: absolute; right: 1px; top: 50%; transform: translateY(-50%);
-    width: 8px; height: 22px; cursor: ew-resize; border-radius: 3px; background: rgba(15,23,42,.3);
+    width: 7px; height: 16px; cursor: ew-resize; border-radius: 3px; background: rgba(15,23,42,.3);
   }
   .resizeHandle:hover { background: rgba(15,23,42,.6); }
 
@@ -61,70 +63,70 @@
   .tabBtn.active { background: #0f172a; color: #fff; box-shadow: 0 2px 6px rgba(15,23,42,.25); }
 
   .sidebarBtn {
-    display:flex; align-items:center; gap:8px; width:100%; text-align:left;
-    padding:7px 10px; border-radius:8px; font-size:13px; font-weight:600;
+    display:inline-flex; align-items:center; gap:6px; text-align:left; white-space:nowrap;
+    padding:5px 9px; border-radius:999px; font-size:12px; font-weight:600;
     border:1.5px solid transparent; cursor:grab; transition:.1s;
   }
-  .sidebarBtn:hover { transform: translateX(2px); }
-  .swatch { width:12px; height:12px; border-radius:4px; flex-shrink:0; border:1.5px solid rgba(0,0,0,.15); }
+  .sidebarBtn:hover { transform: translateY(-1px); }
+  .paletteGroup { display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+  .swatch { width:11px; height:11px; border-radius:4px; flex-shrink:0; border:1.5px solid rgba(0,0,0,.15); }
 
-  .rowLabel { display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:800; color:#64748b; background:#f1f5f9; border-radius:8px; }
+  .rowLabel { display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:800; color:#64748b; background:#f1f5f9; border-radius:8px; letter-spacing:-.02em; text-align:center; padding:0 2px; }
+
+  #paletteBody { transition: max-height .15s ease, opacity .15s ease, padding .15s ease; }
+  #paletteBody.collapsed { max-height:0 !important; opacity:0; overflow:hidden; padding-top:0; padding-bottom:0; }
 
   .scrollbar-thin::-webkit-scrollbar { width:7px; height:7px; }
   .scrollbar-thin::-webkit-scrollbar-thumb { background:#cbd5e1; border-radius:8px; }
   .scrollbar-thin::-webkit-scrollbar-track { background:transparent; }
 </style>
 </head>
-<body class="bg-slate-100 text-slate-800 min-h-screen">
+<body class="bg-slate-100 text-slate-800 h-screen overflow-hidden flex flex-col">
 
 <!-- ===== 상단 유틸리티 바 ===== -->
-<header class="bg-white border-b border-slate-200 px-5 py-3 flex flex-wrap items-center justify-between gap-3 sticky top-0 z-50 shadow-sm">
+<header class="bg-white border-b border-slate-200 px-5 py-2 flex flex-wrap items-center justify-between gap-2 shadow-sm flex-shrink-0">
   <div class="flex items-center gap-3">
-    <div class="w-9 h-9 rounded-xl bg-slate-900 text-white flex items-center justify-center font-extrabold text-sm">덕</div>
-    <div>
-      <h1 class="text-base font-extrabold text-slate-900 leading-tight">덕영고 공간재구조화 인터랙티브 시뮬레이터</h1>
-      <p class="text-[11px] text-slate-400 leading-tight">2026학년도 교사 배치도 기반 · 동(건물) 전체 배치를 한눈에 보고 계획하는 도구</p>
+    <div class="w-8 h-8 rounded-xl bg-slate-900 text-white flex items-center justify-center font-extrabold text-sm flex-shrink-0">덕</div>
+    <div class="hidden lg:block">
+      <h1 class="text-sm font-extrabold text-slate-900 leading-tight">덕영고 공간재구조화 인터랙티브 시뮬레이터</h1>
+      <p class="text-[10px] text-slate-400 leading-tight">2026학년도 교사 배치도 기반</p>
     </div>
   </div>
-  <div class="flex items-center gap-2 flex-wrap">
-    <button id="btnLoadReal" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-indigo-600 text-white hover:bg-indigo-700">이 동 실제 배치로 재설정</button>
-    <button id="btnResetZone" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200">현재 동 전체 비우기</button>
-    <button id="btnResetAll" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-rose-50 text-rose-500 hover:bg-rose-100">전체 초기화</button>
+  <div class="flex items-center gap-1.5 flex-wrap">
+    <button id="btnUndo" title="실행취소 (Ctrl+Z)" class="px-2.5 py-1.5 rounded-lg text-xs font-bold bg-slate-100 text-slate-500 hover:bg-slate-200 disabled:opacity-35 disabled:hover:bg-slate-100">실행취소</button>
+    <button id="btnRedo" title="다시실행 (Ctrl+Y)" class="px-2.5 py-1.5 rounded-lg text-xs font-bold bg-slate-100 text-slate-500 hover:bg-slate-200 disabled:opacity-35 disabled:hover:bg-slate-100">다시실행</button>
     <div class="w-px h-6 bg-slate-200 mx-1"></div>
-    <button id="btnSaveJson" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200">JSON 저장</button>
-    <button id="btnLoadJson" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200">JSON 불러오기</button>
+    <button id="btnManage" class="px-2.5 py-1.5 rounded-lg text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200">배치 리스트 · 도구</button>
+    <button id="btnDiffToggle" title="현재 배치를 2026 실제 배치와 비교" class="px-2.5 py-1.5 rounded-lg text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200">변경 칸 표시: 끔</button>
+    <div class="w-px h-6 bg-slate-200 mx-1"></div>
+    <button id="btnLoadReal" class="px-2.5 py-1.5 rounded-lg text-xs font-bold bg-indigo-600 text-white hover:bg-indigo-700">실제 배치로 재설정</button>
+    <button id="btnResetZone" class="px-2.5 py-1.5 rounded-lg text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200">현재 동 비우기</button>
+    <button id="btnResetAll" class="px-2.5 py-1.5 rounded-lg text-xs font-bold bg-rose-50 text-rose-500 hover:bg-rose-100">전체 초기화</button>
+    <div class="w-px h-6 bg-slate-200 mx-1"></div>
+    <button id="btnSaveJson" class="px-2.5 py-1.5 rounded-lg text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200">JSON 저장</button>
+    <button id="btnLoadJson" class="px-2.5 py-1.5 rounded-lg text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200">JSON 불러오기</button>
     <input type="file" id="fileInput" accept=".json" class="hidden">
-    <button id="btnExportImg" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-emerald-600 text-white hover:bg-emerald-700">배치도 이미지 저장</button>
+    <button id="btnExportImg" class="px-2.5 py-1.5 rounded-lg text-xs font-bold bg-emerald-600 text-white hover:bg-emerald-700">이미지 저장</button>
   </div>
 </header>
 
-<!-- ===== 동 탭 ===== -->
-<div class="bg-white border-b border-slate-200 px-5 py-2.5 flex flex-wrap items-center gap-4 sticky top-[57px] z-40">
+<!-- ===== 동 탭 + 검색 ===== -->
+<div class="bg-white border-b border-slate-200 px-5 py-2 flex flex-wrap items-center gap-3 flex-shrink-0">
   <div id="zoneTabs" class="flex gap-1.5 bg-slate-100 p-1 rounded-xl"></div>
-  <div class="text-[11px] text-slate-400 leading-snug">
-    각 행 = 해당 동의 한 개 층(건물 전체 구조를 한 화면에 표시) · 회색 칸 = 계단/화장실/현관 등 구조상 고정 공간 · 점선 빈 칸 = 배치 가능 공간
-  </div>
-  <div class="ml-auto text-[11px] text-slate-400">가로 1칸 ≈ 20㎡ (계획 참고용 · 실측 아님)</div>
+  <input id="searchInput" type="text" placeholder="이름·호실번호 검색 (현재 동)" class="text-xs border border-slate-200 rounded-full px-3 py-1.5 w-48">
+  <div class="ml-auto text-[11px] text-slate-400">가로 1칸 ≈ 20㎡ (참고용) · Ctrl+클릭: 다중 선택 · Ctrl+D: 복제</div>
 </div>
 
-<!-- ===== 메인 레이아웃 ===== -->
-<main class="grid grid-cols-1 lg:grid-cols-[240px_1fr_300px] gap-4 p-4 items-start">
+<!-- ===== 메인: 캔버스가 화면 전체를 차지, 하단은 접이식 팔레트 ===== -->
+<main class="flex-1 min-h-0 flex flex-col p-3 gap-3">
 
-  <!-- 좌측 패널 -->
-  <aside class="bg-white rounded-2xl border border-slate-200 shadow-sm p-3 max-h-[80vh] overflow-y-auto scrollbar-thin space-y-4">
-    <div>
-      <p class="text-[11px] font-bold text-slate-400 px-1 mb-1">캔버스의 빈 칸(점선)을 먼저 클릭한 뒤 아래 블록을 클릭하거나, 블록을 빈 칸으로 바로 드래그하세요</p>
-    </div>
-    <div id="paletteRoot" class="space-y-4"></div>
-  </aside>
-
-  <!-- 중앙 캔버스 -->
-  <section class="bg-white rounded-2xl border border-slate-200 shadow-sm p-3">
-    <div class="flex items-center justify-between mb-2 px-1 flex-wrap gap-1">
+  <!-- 중앙 캔버스 (메인, 전체 폭) -->
+  <section class="flex-1 min-h-0 min-w-0 bg-white rounded-2xl border border-slate-200 shadow-sm p-3 flex flex-col">
+    <div class="flex items-center justify-between mb-2 px-1 flex-wrap gap-1 flex-shrink-0">
       <h2 id="canvasTitle" class="text-sm font-extrabold text-slate-700"></h2>
-      <p class="text-[11px] text-slate-400">블록 클릭: 선택/편집 · 드래그: 이동 · 오른쪽 가장자리 손잡이: 벽 허물고 면적 넓히기/좁히기 · Shift+클릭: 옆 공간과 병합 · Delete키: 삭제</p>
+      <p class="text-[10.5px] text-slate-400">클릭: 선택/편집 팝업 열기 · 드래그: 이동 · 오른쪽 손잡이: 벽 허물고 면적 조정 · Shift+클릭: 병합 · Delete: 삭제</p>
     </div>
-    <div id="canvasWrap" class="relative rounded-xl border border-slate-200" style="height:70vh;">
+    <div id="canvasWrap" class="relative rounded-xl border border-slate-200 flex-1 min-h-0">
       <div class="flex" style="min-height:100%;">
         <div id="rowLabels" class="flex flex-col flex-shrink-0 sticky left-0 z-20 bg-white/90 backdrop-blur-sm p-1 gap-[3px]"></div>
         <div id="canvas" class="relative flex-shrink-0"></div>
@@ -132,25 +134,68 @@
     </div>
   </section>
 
-  <!-- 우측 분석 패널 -->
-  <aside class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 max-h-[80vh] overflow-y-auto scrollbar-thin space-y-5">
-    <div id="editPanel"></div>
-
-    <div>
-      <h3 class="text-sm font-extrabold text-slate-700 mb-2">현재 동 배치 리스트</h3>
-      <div class="flex items-center justify-between text-xs bg-slate-50 rounded-lg px-3 py-2 mb-2 font-bold text-slate-600">
-        <span>배치 수 <span id="statCount">0</span>개</span>
-        <span>면적 합계 <span id="statArea">0</span>㎡</span>
-      </div>
-      <ul id="listBox" class="space-y-1 text-[12.5px]"></ul>
+  <!-- 하단 접이식 팔레트 스트립 -->
+  <div class="flex-shrink-0 bg-white rounded-2xl border border-slate-200 shadow-sm">
+    <button id="paletteToggle" class="w-full flex items-center justify-between px-3.5 py-2 text-xs font-extrabold text-slate-600">
+      <span>공간 팔레트 — 클릭하거나 캔버스 빈 칸으로 드래그해서 배치</span>
+      <span id="paletteToggleIcon" class="text-slate-400">숨기기 ▾</span>
+    </button>
+    <div id="paletteBody" class="px-3.5 pb-3 overflow-y-auto scrollbar-thin" style="max-height:150px;">
+      <div id="paletteRoot" class="flex flex-wrap gap-x-5 gap-y-2.5 items-start"></div>
     </div>
-
-    <div>
-      <h3 class="text-sm font-extrabold text-slate-700 mb-2">전체(全동) 요약</h3>
-      <div class="text-xs bg-slate-50 rounded-lg px-3 py-2 text-slate-600 font-semibold" id="globalStat"></div>
-    </div>
-  </aside>
+  </div>
 </main>
+
+<!-- ===== 플로팅 편집 팝업 (블록/빈칸/다중선택 시에만 표시) ===== -->
+<div id="editPopup" class="fixed bottom-4 right-4 w-[300px] max-h-[65vh] overflow-y-auto scrollbar-thin bg-white rounded-2xl border border-slate-200 shadow-lg p-3 z-[60] hidden">
+  <div class="flex items-center justify-between mb-1.5">
+    <h3 id="editPopupTitle" class="text-sm font-extrabold text-slate-700">선택된 공간 편집</h3>
+    <button id="editPopupClose" class="w-6 h-6 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-600 text-sm font-bold flex-shrink-0">✕</button>
+  </div>
+  <div id="editPanel"></div>
+</div>
+
+<!-- ===== 배치 리스트 · 도구 팝업 ===== -->
+<div id="managePopup" class="fixed top-[104px] right-4 w-[320px] max-h-[75vh] overflow-y-auto scrollbar-thin bg-white rounded-2xl border border-slate-200 shadow-lg p-3 z-[60] hidden space-y-4">
+  <div class="flex items-center justify-between mb-1">
+    <h3 class="text-sm font-extrabold text-slate-700">배치 리스트 · 도구</h3>
+    <button id="managePopupClose" class="w-6 h-6 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-600 text-sm font-bold flex-shrink-0">✕</button>
+  </div>
+
+  <div>
+    <h4 class="text-xs font-extrabold text-slate-700 mb-2">현재 동 배치 리스트</h4>
+    <div class="flex items-center justify-between text-[11px] bg-slate-50 rounded-lg px-2.5 py-1.5 mb-2 font-bold text-slate-600">
+      <span>배치 <span id="statCount">0</span>개</span>
+      <span><span id="statArea">0</span>㎡</span>
+    </div>
+    <ul id="listBox" class="space-y-1 text-[12px] max-h-48 overflow-y-auto scrollbar-thin"></ul>
+  </div>
+
+  <div>
+    <h4 class="text-xs font-extrabold text-slate-700 mb-2">카테고리별 면적 비율</h4>
+    <div id="categoryChart" class="space-y-1.5"></div>
+  </div>
+
+  <div>
+    <h4 class="text-xs font-extrabold text-slate-700 mb-2">전체(全동) 요약</h4>
+    <div class="text-[11px] bg-slate-50 rounded-lg px-2.5 py-1.5 text-slate-600 font-semibold" id="globalStat"></div>
+  </div>
+
+  <div>
+    <h4 class="text-xs font-extrabold text-slate-700 mb-2">CSV 내보내기</h4>
+    <button id="btnExportCsv" class="w-full text-xs font-bold bg-slate-100 text-slate-600 rounded-lg py-1.5 hover:bg-slate-200">전체 동 배치를 CSV로 내보내기</button>
+  </div>
+
+  <div>
+    <h4 class="text-xs font-extrabold text-slate-700 mb-2">시나리오</h4>
+    <div class="flex gap-1 mb-2">
+      <input id="scenarioName" type="text" placeholder="시나리오 이름" class="flex-1 min-w-0 text-xs border border-slate-200 rounded-lg px-2 py-1.5">
+      <button id="scenarioSaveBtn" class="text-xs font-bold bg-indigo-600 text-white px-2.5 rounded-lg hover:bg-indigo-700 flex-shrink-0">저장</button>
+    </div>
+    <ul id="scenarioList" class="space-y-1 text-[12px]"></ul>
+    <p class="text-[10.5px] text-slate-400 leading-snug pt-1">현재 전체 동 배치 상태를 이름 붙여 저장해두고 나중에 다시 불러올 수 있어요. JSON 저장 시 시나리오도 함께 저장됩니다.</p>
+  </div>
+</div>
 
 <script>
 (function(){
@@ -159,9 +204,12 @@
 /* =========================================================
    1. 기본 데이터 정의
 ========================================================= */
-const CELL_W = 84;
-const CELL_H = 62;
-const GRID_PAD_COLS = 4;   // 실제 배치 오른쪽에 여유 칸을 더 둬서 새 공간을 만들 수 있게 함
+let CELL_W = 108;
+let CELL_H = 44;
+const ASPECT_RATIO = 108/44;   // 실제 교실 단면 비율(가로 길게)을 화면 크기와 무관하게 유지
+const MIN_CELL_W = 80;         // 이보다 작아지면 실 이름/호실번호가 겹치거나 잘리므로 하한선을 둠
+const MAX_CELL_W = 160;
+const GRID_PAD_COLS = 2;   // 실제 배치 오른쪽에 여유 칸을 조금만 둬서 새 공간을 추가할 수 있게 함 (과도한 빈칸 방지)
 const UNIT_AREA = 20;      // 가로 1칸 ≈ 20㎡ (참고용)
 
 const ZONE_META = {
@@ -241,10 +289,14 @@ const PALETTE = [
 ========================================================= */
 function R(name, num, category, opt){ return Object.assign({name, num, category}, opt||{}); }
 
-const FLOORS_BY_ZONE = { C:[4,3,2,1], V:[3,2,1], W:[4,3,2,1], E:[2,1], D:[1] };
+const FLOORS_BY_ZONE = { C:[5,4,3,2,1,-1], V:[3,2,1,-1], W:[5,4,3,2,1], E:[3,2,1,-1], D:[1] };
 
 const ROOM_DATA = {
   C: {
+    5: [
+      R("계단","","fixed",{fixed:true}),
+      R("화장실(여)","","fixed",{fixed:true}),
+    ],
     4: [
       R("기자재실","196","fixed",{fixed:true}),
       R("계단","","fixed",{fixed:true}),
@@ -302,9 +354,15 @@ const ROOM_DATA = {
       R("바리스타실","170","common"),
       R("현관","","fixed",{fixed:true}),
     ],
+    "-1": [
+      R("계단","","fixed",{fixed:true}),
+      R("기계실","","fixed",{fixed:true}),
+      R("화장실(남)","","fixed",{fixed:true}),
+    ],
   },
   V: {
     3: [
+      R("계단","","fixed",{fixed:true}),
       R("3-1","126","classroom"), R("3-2","127","classroom"),
       R("3-3","128","classroom"), R("3-4","129","classroom"),
       R("3-5","130","classroom"), R("3-6","131","classroom"),
@@ -313,6 +371,7 @@ const ROOM_DATA = {
       R("계단","","fixed",{fixed:true}),
     ],
     2: [
+      R("계단","","fixed",{fixed:true}),
       R("2-3","135","classroom"),
       R("2-4","136","classroom"),
       R("2-6","137","classroom"),
@@ -325,24 +384,32 @@ const ROOM_DATA = {
       R("계단","","fixed",{fixed:true}),
     ],
     1: [
+      R("현관","","fixed",{fixed:true}),
       R("일시적 관찰실","113","admin"),
       R("성적처리실","114","admin"),
       R("인쇄실","115","admin"),
       R("직업교육부","116","admin"),
       R("교장실","117","admin"),
+      R("현관","","fixed",{fixed:true}),
       R("숙직실","118","admin"),
       R("행정실","119","admin"),
       R("법인실","120","admin"),
       R("학부모회의실","123","admin"),
       R("큰 교무실","124","admin",{size:{w:2}}),
-      R("인쇄 문서고","144","fixed",{fixed:true}),
-      R("진로체험공간(Space-X)","111","common"),
-      R("공실","112","fixed",{fixed:true}),
+      R("문서고","144","fixed",{fixed:true}),
+    ],
+    "-1": [
       R("계단","","fixed",{fixed:true}),
-      R("현관","","fixed",{fixed:true}),
+      R("진로체험공간(Space-X)","111","common"),
+      R("공실","112","common"),
     ],
   },
   W: {
+    5: [
+      R("계단","","fixed",{fixed:true}),
+      R("화장실(여)","","fixed",{fixed:true}),
+      R("화장실(남)","","fixed",{fixed:true}),
+    ],
     4: [
       R("1-1","228","classroom"), R("1-2","229","classroom"),
       R("계단","","fixed",{fixed:true}),
@@ -370,6 +437,10 @@ const ROOM_DATA = {
     ],
   },
   E: {
+    3: [
+      R("계단","","fixed",{fixed:true}),
+      R("화장실(여)","","fixed",{fixed:true}),
+    ],
     2: [
       R("기초간호임상실무실","155","health"),
       R("간호의기초실","156","health"),
@@ -384,6 +455,10 @@ const ROOM_DATA = {
       R("보건교무실","154","admin"),
       R("소규모학습실(보건)","154","admin"),
       R("화장실(여)","","fixed",{fixed:true}), R("화장실(남)","","fixed",{fixed:true}),
+    ],
+    "-1": [
+      R("계단","","fixed",{fixed:true}),
+      R("보일러실","","fixed",{fixed:true}),
     ],
   },
 };
@@ -439,6 +514,38 @@ function emptyZoneGrid(zone){
   return { rows:g.rows, cols:g.cols, blocks:[], floors:g.floors };
 }
 
+/* id를 소모하지 않는 순수 조회용 실제 배치 목록 (변경 칸 비교용) */
+function realLayoutBlocks(zone){
+  if(zone === "D"){
+    return [
+      {row:0,col:0,w:1,h:1,name:"계단",category:"fixed"},
+      {row:0,col:1,w:1,h:1,name:"계단",category:"fixed"},
+      {row:0,col:2,w:1,h:3,name:"필로티",category:"fixed"},
+      {row:0,col:3,w:1,h:3,name:"통학로",category:"fixed"},
+      {row:1,col:0,w:1,h:1,name:"체육관",category:"common"},
+      {row:1,col:1,w:1,h:1,name:"조리실/식당",category:"common"},
+      {row:2,col:0,w:1,h:1,name:"계단",category:"fixed"},
+      {row:2,col:1,w:1,h:1,name:"계단",category:"fixed"},
+    ];
+  }
+  const floors = FLOORS_BY_ZONE[zone];
+  const out = [];
+  floors.forEach((f, i)=>{
+    let col = 0;
+    (ROOM_DATA[zone][f] || []).forEach(it=>{
+      const w = (it.size && it.size.w) || 1;
+      out.push({ row:i, col, w, name:it.name, category:it.category });
+      col += w;
+    });
+  });
+  return out;
+}
+function realLayoutLookup(zone){
+  const map = new Map();
+  realLayoutBlocks(zone).forEach(b=> map.set(b.row+"_"+b.col, b));
+  return map;
+}
+
 function initialState(){
   const s = {};
   Object.keys(ZONE_META).forEach(z=> s[z] = buildZoneGrid(z));
@@ -449,8 +556,48 @@ let state = initialState();
 let currentZone = "C";
 let selectedId = null;
 let selectedBlank = null; // {row, col}
+let multiSelect = [];     // 다중 선택된 블록 id 배열
+let diffMode = false;     // 실제 배치와 달라진 칸 표시 모드
+let scenarios = {};       // 이름 -> 전체 state 스냅샷
 
 function zoneState(){ return state[currentZone]; }
+
+/* =========================================================
+   3-1. 실행취소 / 다시실행
+========================================================= */
+let undoStack = [];
+let redoStack = [];
+const MAX_UNDO = 50;
+
+function snapshotState(){ return JSON.stringify(state); }
+function pushUndo(){
+  undoStack.push(snapshotState());
+  if(undoStack.length > MAX_UNDO) undoStack.shift();
+  redoStack = [];
+  updateUndoRedoButtons();
+}
+function undo(){
+  if(undoStack.length === 0) return;
+  redoStack.push(snapshotState());
+  state = JSON.parse(undoStack.pop());
+  selectedId = null; selectedBlank = null; multiSelect = [];
+  updateUndoRedoButtons();
+  renderAll();
+}
+function redo(){
+  if(redoStack.length === 0) return;
+  undoStack.push(snapshotState());
+  state = JSON.parse(redoStack.pop());
+  selectedId = null; selectedBlank = null; multiSelect = [];
+  updateUndoRedoButtons();
+  renderAll();
+}
+function updateUndoRedoButtons(){
+  const u = document.getElementById("btnUndo");
+  const r = document.getElementById("btnRedo");
+  if(u) u.disabled = undoStack.length === 0;
+  if(r) r.disabled = redoStack.length === 0;
+}
 
 /* =========================================================
    4. 그리드 유틸
@@ -501,37 +648,37 @@ function renderPalette(){
   PALETTE.forEach(group=>{
     const meta = CATEGORY_META[group.key];
     const wrap = document.createElement("div");
-    const title = document.createElement("p");
-    title.className = "text-[11.5px] font-extrabold text-slate-500 px-1 mb-1.5 flex items-center gap-1.5";
+    wrap.className = "paletteGroup";
+
+    const title = document.createElement("span");
+    title.className = "text-[11px] font-extrabold text-slate-500 flex items-center gap-1 flex-shrink-0";
     title.innerHTML = `<span class="swatch" style="background:${meta.color};border-color:${meta.border}"></span>${meta.label}`;
     wrap.appendChild(title);
 
-    const list = document.createElement("div");
-    list.className = "space-y-1";
     group.items.forEach(item=>{
       const b = document.createElement("button");
       b.className = "sidebarBtn";
       b.style.background = meta.color + "55";
       b.style.borderColor = meta.border + "66";
       b.draggable = true;
-      b.innerHTML = `<span class="swatch" style="background:${meta.color};border-color:${meta.border}"></span>${item.name}`;
+      b.innerHTML = item.name;
       b.addEventListener("click", ()=> addBlockFromPalette(group.key, item));
       b.addEventListener("dragstart", ev=>{
         ev.dataTransfer.setData("text/plain", JSON.stringify({cat:group.key, item}));
       });
-      list.appendChild(b);
+      wrap.appendChild(b);
     });
-    wrap.appendChild(list);
-    paletteRoot.appendChild(wrap);
 
     if(group.key === "common"){
-      const customWrap = document.createElement("div");
-      customWrap.className = "flex gap-1 mt-1.5";
+      const customWrap = document.createElement("span");
+      customWrap.className = "flex gap-1 items-center";
       customWrap.innerHTML = `
-        <input id="customName" type="text" placeholder="신규 공간 이름" class="flex-1 min-w-0 text-[11.5px] border border-slate-200 rounded-lg px-2 py-1.5">
-        <button id="customAddBtn" class="text-[11.5px] font-bold bg-teal-500 text-white px-2.5 rounded-lg hover:bg-teal-600">추가</button>`;
+        <input id="customName" type="text" placeholder="신규 공간 이름" class="w-28 text-[11.5px] border border-slate-200 rounded-full px-2.5 py-1">
+        <button id="customAddBtn" class="text-[11.5px] font-bold bg-teal-500 text-white px-2.5 py-1 rounded-full hover:bg-teal-600 flex-shrink-0">추가</button>`;
       wrap.appendChild(customWrap);
     }
+
+    paletteRoot.appendChild(wrap);
   });
 
   document.getElementById("customAddBtn").onclick = ()=>{
@@ -553,14 +700,23 @@ function addBlockFromPalette(category, item){
     target = findFirstFreeCell(zs, w);
   }
   if(!target){ alert("현재 동에 배치할 빈 공간이 없습니다. 다른 블록의 크기를 줄이거나 삭제한 뒤 다시 시도해 주세요."); return; }
+  pushUndo();
   zs.blocks.push({
-    id:newId(), name:item.name, num:"", category,
+    id:newId(), name:item.name, num:"", category, note:"",
     row:target.row, col:target.col, w, h:1, fixed:!!item.fixed,
   });
   selectedId = null;
   selectedBlank = null;
   renderCanvas();
 }
+
+/* ---- 하단 팔레트 접기/펼치기 ---- */
+const paletteBodyEl = document.getElementById("paletteBody");
+const paletteToggleIconEl = document.getElementById("paletteToggleIcon");
+document.getElementById("paletteToggle").onclick = ()=>{
+  const collapsed = paletteBodyEl.classList.toggle("collapsed");
+  paletteToggleIconEl.textContent = collapsed ? "펼치기 ▸" : "숨기기 ▾";
+};
 
 /* =========================================================
    7. 렌더링 - 캔버스 (건물 전체 그리드: 드래그 / 폭 조정 / 병합 / 선택)
@@ -570,22 +726,40 @@ const canvasWrapEl = document.getElementById("canvasWrap");
 const canvasTitleEl = document.getElementById("canvasTitle");
 const rowLabelsEl = document.getElementById("rowLabels");
 
+function floorLabelText(floorNum){
+  return floorNum < 0 ? ("지하" + Math.abs(floorNum) + "층") : (floorNum + "층");
+}
+
 function renderRowLabels(zs){
   rowLabelsEl.innerHTML = "";
   rowLabelsEl.style.paddingTop = "0px";
   for(let r=0; r<zs.rows; r++){
     const lab = document.createElement("div");
     lab.className = "rowLabel";
-    lab.style.width = "40px";
+    lab.style.width = "46px";
     lab.style.height = CELL_H + "px";
     const floorNum = zs.floors[r];
-    lab.textContent = currentZone === "D" ? "" : (floorNum + "층");
+    lab.textContent = currentZone === "D" ? "" : floorLabelText(floorNum);
     rowLabelsEl.appendChild(lab);
   }
 }
 
-function renderCanvas(){
+function computeCellSize(zs){
+  const labelWidth = 46 + 8; // 층 라벨 폭 + 여백
+  const availW = Math.max(240, (canvasWrapEl.clientWidth || 800) - labelWidth);
+  const availH = Math.max(160, (canvasWrapEl.clientHeight || 500) - 8);
+  const wFromWidth = availW / zs.cols;
+  const wFromHeight = (availH / zs.rows) * ASPECT_RATIO; // 세로 여유를 가로 폭 기준으로 환산
+  let w = Math.min(wFromWidth, wFromHeight);
+  w = Math.max(MIN_CELL_W, Math.min(MAX_CELL_W, w));
+  CELL_W = Math.round(w);
+  CELL_H = Math.round(CELL_W / ASPECT_RATIO);
+}
+
+function renderCanvas(opts){
+  opts = opts || {};
   const zs = zoneState();
+  computeCellSize(zs);
   canvasTitleEl.textContent = `${ZONE_META[currentZone].name} 건물 전체 배치도`;
   canvasEl.style.width = (zs.cols*CELL_W) + "px";
   canvasEl.style.height = (zs.rows*CELL_H) + "px";
@@ -606,7 +780,7 @@ function renderCanvas(){
       cell.style.height = (CELL_H-6) + "px";
       cell.addEventListener("click", ()=>{
         selectedBlank = {row:r, col:c};
-        selectedId = null;
+        selectedId = null; multiSelect = [];
         renderCanvas();
       });
       canvasEl.appendChild(cell);
@@ -614,10 +788,21 @@ function renderCanvas(){
   }
 
   // 블록 렌더링
+  const realMap = diffMode ? realLayoutLookup(currentZone) : null;
   zs.blocks.forEach(b=>{
     const meta = CATEGORY_META[b.category] || CATEGORY_META.common;
     const div = document.createElement("div");
-    div.className = "block" + (b.id===selectedId?" selected":"") + (b.fixed?" fixedBlock":"");
+    const isMulti = multiSelect.includes(b.id);
+    let changed = false;
+    if(realMap){
+      const r = realMap.get(b.row+"_"+b.col);
+      changed = !r || r.name !== b.name || r.category !== b.category || r.w !== b.w;
+    }
+    div.className = "room-block"
+      + (b.id===selectedId?" selected":"")
+      + (isMulti?" multiSelected":"")
+      + (changed?" changedBlock":"")
+      + (b.fixed?" fixedBlock":"");
     div.style.left = (b.col*CELL_W+2) + "px";
     div.style.top = (b.row*CELL_H+2) + "px";
     div.style.width = (b.w*CELL_W-6) + "px";
@@ -626,10 +811,13 @@ function renderCanvas(){
     div.style.borderColor = meta.border;
     div.dataset.id = b.id;
 
+    const roomy = CELL_H >= 32;
+    const showBadge = b.fixed && CELL_H >= 26;
     div.innerHTML = `
-      ${b.fixed?'<span class="badge">고정</span>':''}
+      ${showBadge?'<span class="badge">고정</span>':''}
       <div class="name">${b.name}</div>
-      ${b.num?`<div class="num">#${b.num}</div>`:""}
+      ${(b.num && roomy)?`<div class="num">#${b.num}</div>`:""}
+      ${(b.note && b.note.trim())?'<span class="noteDot" title="메모 있음"></span>':''}
     `;
     if(!b.fixed){
       const handle = document.createElement("div");
@@ -642,12 +830,16 @@ function renderCanvas(){
   });
 
   renderList(zs);
-  renderEditPanel();
+  if(!opts.skipEditPanel) renderEditPanel();
   renderGlobalStat();
 }
 
 /* ---- 드래그 이동 (동일 동 내 임의 위치로 이동, 다른 층 행으로도 이동 가능) ---- */
 function startDrag(ev, block){
+  if(ev.ctrlKey || ev.metaKey){
+    toggleMultiSelect(block.id);
+    return;
+  }
   if(ev.shiftKey){
     handleShiftMerge(block);
     return;
@@ -676,22 +868,30 @@ function startDrag(ev, block){
       let newRow = Math.round((startTop+dy)/CELL_H);
       newCol = Math.max(0, Math.min(newCol, zs.cols - block.w));
       newRow = Math.max(0, Math.min(newRow, zs.rows - block.h));
-      if(rectFree(zs, newRow, newCol, block.w, block.h, block.id)){
+      if((newRow !== block.row || newCol !== block.col) && rectFree(zs, newRow, newCol, block.w, block.h, block.id)){
+        pushUndo();
         block.row = newRow; block.col = newCol;
       } else {
         // 충돌 시 원위치로 되돌림
       }
       selectedId = block.id;
-      selectedBlank = null;
+      multiSelect = []; selectedBlank = null;
       renderCanvas();
     } else {
       selectedId = block.id;
-      selectedBlank = null;
+      multiSelect = []; selectedBlank = null;
       renderCanvas();
     }
   }
   document.addEventListener("mousemove", onMove);
   document.addEventListener("mouseup", onUp);
+}
+
+function toggleMultiSelect(id){
+  const idx = multiSelect.indexOf(id);
+  if(idx>-1) multiSelect.splice(idx,1); else multiSelect.push(id);
+  selectedId = null; selectedBlank = null;
+  renderCanvas();
 }
 
 /* ---- 오른쪽 가장자리 드래그: 벽 허물기(폭 넓히기) / 벽 세우기(폭 줄이기) ---- */
@@ -715,6 +915,7 @@ function startResize(ev, block){
   function onUp(){
     document.removeEventListener("mousemove", onMove);
     document.removeEventListener("mouseup", onUp);
+    if(pendingW !== startW) pushUndo();
     block.w = pendingW;
     selectedId = block.id;
     selectedBlank = null;
@@ -735,6 +936,7 @@ function handleShiftMerge(clicked){
   const sameRow = a.row === b.row && a.h === 1 && b.h === 1;
   const adjacent = sameRow && (a.col + a.w === b.col || b.col + b.w === a.col);
   if(!adjacent){ alert("같은 층에서 서로 맞닿아 있는 공간끼리만 병합할 수 있어요."); return; }
+  pushUndo();
   const left = a.col < b.col ? a : b;
   const right = a.col < b.col ? b : a;
   left.w = left.w + right.w;
@@ -764,30 +966,85 @@ canvasEl.addEventListener("drop", ev=>{
     if(!spot){ alert("배치할 빈 공간이 없습니다."); return; }
     row = spot.row; col = spot.col;
   }
-  zs.blocks.push({ id:newId(), name:item.name, num:"", category:cat, row, col, w, h:1, fixed:!!item.fixed });
+  zs.blocks.push({ id:newId(), name:item.name, num:"", category:cat, note:"", row, col, w, h:1, fixed:!!item.fixed });
   selectedId = null; selectedBlank = null;
   renderCanvas();
 });
 
 canvasWrapEl.addEventListener("mousedown", ev=>{
   if(ev.target === canvasWrapEl || ev.target === canvasEl){
-    selectedId = null; selectedBlank = null;
+    selectedId = null; selectedBlank = null; multiSelect = [];
     renderCanvas();
   }
 });
 
+document.getElementById("editPopupClose").onclick = ()=>{
+  selectedId = null; selectedBlank = null; multiSelect = [];
+  renderCanvas();
+};
+
 document.addEventListener("keydown", ev=>{
+  const tag = document.activeElement && document.activeElement.tagName;
+  const typing = ["INPUT","SELECT","TEXTAREA"].includes(tag);
+
+  if((ev.ctrlKey || ev.metaKey) && !typing){
+    if(ev.key === "z" || ev.key === "Z"){ ev.preventDefault(); if(ev.shiftKey) redo(); else undo(); return; }
+    if(ev.key === "y" || ev.key === "Y"){ ev.preventDefault(); redo(); return; }
+    if(ev.key === "d" || ev.key === "D"){ if(selectedId){ ev.preventDefault(); duplicateBlock(selectedId); } return; }
+  }
   if(ev.key === "Delete" || ev.key === "Backspace"){
-    if(selectedId && document.activeElement.tagName !== "INPUT"){
-      deleteBlock(selectedId);
-    }
+    if(typing) return;
+    if(multiSelect.length>0){ bulkDelete(); }
+    else if(selectedId){ deleteBlock(selectedId); }
+  }
+  if(ev.key === "Escape" && (selectedId || selectedBlank || multiSelect.length>0)){
+    selectedId = null; selectedBlank = null; multiSelect = [];
+    renderCanvas();
   }
 });
 
 function deleteBlock(id){
+  pushUndo();
   const zs = zoneState();
   zs.blocks = zs.blocks.filter(b=>b.id!==id);
   selectedId = null;
+  renderCanvas();
+}
+
+function duplicateBlock(id){
+  const zs = zoneState();
+  const b = zs.blocks.find(x=>x.id===id);
+  if(!b || b.fixed) return;
+  const spot = findFreeSpotNear(zs, b);
+  if(!spot){ alert("복제할 빈 공간이 없습니다."); return; }
+  pushUndo();
+  const copy = Object.assign({}, b, { id:newId(), row:spot.row, col:spot.col });
+  zs.blocks.push(copy);
+  selectedId = copy.id; selectedBlank = null;
+  renderCanvas();
+}
+function findFreeSpotNear(zs, b){
+  // 같은 층 오른쪽부터 우선 탐색, 없으면 동 전체에서 첫 빈 자리
+  for(let c = b.col+b.w; c <= zs.cols-b.w; c++){
+    if(rectFree(zs, b.row, c, b.w, b.h)) return {row:b.row, col:c};
+  }
+  return findFirstFreeCell(zs, b.w);
+}
+
+function bulkDelete(){
+  if(multiSelect.length===0) return;
+  if(!confirm(`선택한 ${multiSelect.length}개 공간을 모두 삭제할까요?`)) return;
+  pushUndo();
+  const zs = zoneState();
+  zs.blocks = zs.blocks.filter(b=> !multiSelect.includes(b.id));
+  multiSelect = [];
+  renderCanvas();
+}
+function bulkSetCategory(cat){
+  if(multiSelect.length===0) return;
+  pushUndo();
+  const zs = zoneState();
+  zs.blocks.forEach(b=>{ if(multiSelect.includes(b.id)) b.category = cat; });
   renderCanvas();
 }
 
@@ -796,22 +1053,58 @@ function deleteBlock(id){
 ========================================================= */
 function renderEditPanel(){
   const panel = document.getElementById("editPanel");
+  const popup = document.getElementById("editPopup");
+  const titleEl = document.getElementById("editPopupTitle");
   const zs = zoneState();
   const b = zs.blocks.find(x=>x.id===selectedId);
-  if(!b){
-    panel.innerHTML = selectedBlank
-      ? `<div class="text-xs text-indigo-500 bg-indigo-50 rounded-lg px-3 py-3">빈 칸이 선택되었습니다.<br>왼쪽 팔레트에서 공간을 클릭하면 이 칸에 배치돼요.</div>`
-      : `<div class="text-xs text-slate-400 bg-slate-50 rounded-lg px-3 py-3">캔버스에서 블록이나 빈 칸을 클릭해 보세요.<br>이름 변경 · 폭(면적) 조정 · 삭제 · 병합을 할 수 있어요.</div>`;
+
+  if(multiSelect.length > 0){
+    popup.classList.remove("hidden");
+    titleEl.textContent = `다중 선택 (${multiSelect.length}개) 편집`;
+    const catOptions = Object.entries(CATEGORY_META).map(([k,m])=>
+      `<option value="${k}">${m.label}</option>`).join("");
+    panel.innerHTML = `
+      <div class="bg-blue-50 rounded-xl p-3 space-y-2">
+        <p class="text-[11px] text-blue-600 font-semibold leading-snug">Ctrl(⌘)+클릭으로 더 추가/제외할 수 있어요.</p>
+        <label class="block text-[11px] font-bold text-slate-500">카테고리 일괄 변경
+          <div class="flex gap-1 mt-1">
+            <select id="bulkCategory" class="flex-1 min-w-0 text-xs border border-slate-200 rounded-lg px-2 py-1.5">${catOptions}</select>
+            <button id="bulkCategoryApply" class="text-xs font-bold bg-blue-600 text-white px-2.5 rounded-lg hover:bg-blue-700 flex-shrink-0">적용</button>
+          </div>
+        </label>
+        <button id="bulkDeleteBtn" class="w-full mt-1 text-xs font-bold bg-rose-50 text-rose-500 rounded-lg py-1.5 hover:bg-rose-100">선택한 ${multiSelect.length}개 모두 삭제</button>
+        <button id="bulkClearBtn" class="w-full text-xs font-bold bg-slate-100 text-slate-500 rounded-lg py-1.5 hover:bg-slate-200">선택 해제</button>
+      </div>
+    `;
+    document.getElementById("bulkCategoryApply").onclick = ()=> bulkSetCategory(document.getElementById("bulkCategory").value);
+    document.getElementById("bulkDeleteBtn").onclick = bulkDelete;
+    document.getElementById("bulkClearBtn").onclick = ()=>{ multiSelect=[]; renderCanvas(); };
     return;
   }
+
+  if(!b && !selectedBlank){
+    popup.classList.add("hidden");
+    panel.innerHTML = "";
+    return;
+  }
+  popup.classList.remove("hidden");
+
+  if(!b){
+    titleEl.textContent = "빈 칸";
+    panel.innerHTML = `<div class="text-xs text-indigo-500 bg-indigo-50 rounded-lg px-3 py-3">빈 칸이 선택되었습니다.<br>하단 팔레트에서 공간을 클릭하면 이 칸에 배치돼요.</div>`;
+    return;
+  }
+  titleEl.textContent = "선택된 공간 편집";
   const catOptions = Object.entries(CATEGORY_META).map(([k,m])=>
     `<option value="${k}" ${k===b.category?"selected":""}>${m.label}</option>`).join("");
 
   panel.innerHTML = `
-    <h3 class="text-sm font-extrabold text-slate-700 mb-2">선택된 공간 편집</h3>
     <div class="bg-slate-50 rounded-xl p-3 space-y-2">
       <label class="block text-[11px] font-bold text-slate-500">이름
         <input id="editName" type="text" value="${b.name.replace(/"/g,'&quot;')}" class="mt-1 w-full text-xs border border-slate-200 rounded-lg px-2 py-1.5">
+      </label>
+      <label class="block text-[11px] font-bold text-slate-500">호실 번호
+        <input id="editNum" type="text" value="${(b.num||"").replace(/"/g,'&quot;')}" placeholder="예: 193" class="mt-1 w-full text-xs border border-slate-200 rounded-lg px-2 py-1.5">
       </label>
       <label class="block text-[11px] font-bold text-slate-500">카테고리
         <select id="editCategory" class="mt-1 w-full text-xs border border-slate-200 rounded-lg px-2 py-1.5">${catOptions}</select>
@@ -819,24 +1112,63 @@ function renderEditPanel(){
       <label class="block text-[11px] font-bold text-slate-500">폭(가로 칸수) · ${b.w*UNIT_AREA}㎡
         <input id="editW" type="number" min="1" max="${zs.cols}" value="${b.w}" ${b.fixed?"disabled":""} class="mt-1 w-full text-xs border border-slate-200 rounded-lg px-2 py-1.5 disabled:bg-slate-100">
       </label>
+      <label class="block text-[11px] font-bold text-slate-500">메모
+        <textarea id="editNote" rows="2" placeholder="예: 채광이 안 좋음, 방음 보강 필요 등" class="mt-1 w-full text-xs border border-slate-200 rounded-lg px-2 py-1.5 resize-none">${(b.note||"").replace(/</g,"&lt;")}</textarea>
+      </label>
       <label class="flex items-center gap-1.5 text-[11px] font-bold text-slate-500 pt-1">
         <input id="editFixed" type="checkbox" ${b.fixed?"checked":""}> 이동/면적조정 금지(고정)
       </label>
-      <button id="editDelete" class="w-full mt-1 text-xs font-bold bg-rose-50 text-rose-500 rounded-lg py-1.5 hover:bg-rose-100">이 블록 삭제</button>
-      <p class="text-[10.5px] text-slate-400 leading-snug pt-1">같은 층(행)에서 캔버스 위 오른쪽 손잡이를 드래그하면 옆 칸 벽을 허물며 면적을 넓히거나, 반대로 줄여 벽을 다시 세울 수 있어요. 옆 블록을 Shift+클릭하면 바로 병합됩니다.</p>
+      <div class="flex gap-1.5 pt-1">
+        <button id="editDuplicate" class="flex-1 text-xs font-bold bg-slate-100 text-slate-600 rounded-lg py-1.5 hover:bg-slate-200">복제 (Ctrl+D)</button>
+        <button id="editDelete" class="flex-1 text-xs font-bold bg-rose-50 text-rose-500 rounded-lg py-1.5 hover:bg-rose-100">삭제</button>
+      </div>
+      <p class="text-[10.5px] text-slate-400 leading-snug pt-1">오른쪽 손잡이 드래그: 벽 허물고 면적 조정 · Shift+클릭: 옆 공간과 병합 · Ctrl+클릭: 다중 선택</p>
+    </div>
+
+    <div class="bg-indigo-50 rounded-xl p-3 mt-2 space-y-1.5">
+      <p class="text-[11px] font-extrabold text-indigo-600">호실 번호 연속 적용</p>
+      <div class="flex gap-1">
+        <input id="seqStart" type="text" placeholder="시작 번호 (예: 193)" class="flex-1 min-w-0 text-xs border border-indigo-200 rounded-lg px-2 py-1.5">
+        <input id="seqCount" type="number" min="1" placeholder="개수" class="w-14 text-xs border border-indigo-200 rounded-lg px-2 py-1.5">
+        <button id="seqApply" class="text-xs font-bold bg-indigo-600 text-white px-2.5 rounded-lg hover:bg-indigo-700 flex-shrink-0">적용</button>
+      </div>
+      <p class="text-[10.5px] text-indigo-400 leading-snug">선택된 공간부터 같은 층에서 오른쪽으로 1씩 증가하며 번호가 자동으로 매겨집니다. 개수를 비워두면 그 층 끝까지 적용돼요.</p>
     </div>
   `;
 
-  document.getElementById("editName").oninput = e=>{ b.name = e.target.value; renderCanvas(); };
-  document.getElementById("editCategory").onchange = e=>{ b.category = e.target.value; renderCanvas(); };
+  let editUndoArmed = false;
+  function armUndoOnce(){ if(!editUndoArmed){ pushUndo(); editUndoArmed = true; } }
+
+  document.getElementById("editName").addEventListener("focus", armUndoOnce);
+  document.getElementById("editName").oninput = e=>{ b.name = e.target.value; renderCanvas({skipEditPanel:true}); };
+  document.getElementById("editNum").addEventListener("focus", armUndoOnce);
+  document.getElementById("editNum").oninput = e=>{ b.num = e.target.value; renderCanvas({skipEditPanel:true}); };
+  document.getElementById("editNote").addEventListener("focus", armUndoOnce);
+  document.getElementById("editNote").oninput = e=>{ b.note = e.target.value; renderCanvas({skipEditPanel:true}); };
+  document.getElementById("editCategory").onchange = e=>{ pushUndo(); b.category = e.target.value; renderCanvas(); };
   document.getElementById("editW").onchange = e=>{
     let w = Math.max(1, parseInt(e.target.value)||1);
     while(w > 1 && !rectFree(zs, b.row, b.col, w, b.h, b.id)) w--;
+    pushUndo();
     b.w = w;
     renderCanvas();
   };
-  document.getElementById("editFixed").onchange = e=>{ b.fixed = e.target.checked; renderCanvas(); };
+  document.getElementById("editFixed").onchange = e=>{ pushUndo(); b.fixed = e.target.checked; renderCanvas(); };
+  document.getElementById("editDuplicate").onclick = ()=> duplicateBlock(b.id);
   document.getElementById("editDelete").onclick = ()=> deleteBlock(b.id);
+  document.getElementById("seqApply").onclick = ()=>{
+    const startNum = parseInt(document.getElementById("seqStart").value.trim(), 10);
+    if(isNaN(startNum)){ alert("시작 번호를 숫자로 입력해 주세요. 예: 193"); return; }
+    const countRaw = document.getElementById("seqCount").value.trim();
+    const count = countRaw ? Math.max(1, parseInt(countRaw,10)) : Infinity;
+    const rowBlocks = zs.blocks
+      .filter(x=> x.row === b.row && x.col >= b.col)
+      .sort((x,y)=> x.col - y.col)
+      .slice(0, count === Infinity ? undefined : count);
+    pushUndo();
+    rowBlocks.forEach((blk,i)=>{ blk.num = String(startNum + i); });
+    renderCanvas();
+  };
 }
 
 /* =========================================================
@@ -850,19 +1182,49 @@ function renderList(zs){
     area += b.w*UNIT_AREA;
     const li = document.createElement("li");
     li.className = "flex items-center justify-between gap-2 px-2 py-1.5 rounded-lg hover:bg-slate-50 cursor-pointer" + (b.id===selectedId?" bg-slate-100":"");
-    const floorTxt = currentZone === "D" ? "" : `${zs.floors[b.row]}층 · `;
+    const floorTxt = currentZone === "D" ? "" : `${floorLabelText(zs.floors[b.row])} · `;
+    if(b.note && b.note.trim()) li.title = "메모: " + b.note;
     li.innerHTML = `
       <span class="flex items-center gap-1.5 truncate">
         <span class="swatch" style="background:${CATEGORY_META[b.category].color};border-color:${CATEGORY_META[b.category].border}"></span>
-        <span class="truncate">${floorTxt}${b.name}${b.fixed?" (고정)":""}</span>
+        <span class="truncate">${floorTxt}${b.name}${b.fixed?" (고정)":""}${(b.note&&b.note.trim())?" (메모)":""}</span>
       </span>
       <span class="text-slate-400 flex-shrink-0">${b.w*UNIT_AREA}㎡</span>
     `;
-    li.onclick = ()=>{ selectedId = b.id; selectedBlank = null; renderCanvas(); };
+    li.onclick = ()=>{ selectedId = b.id; selectedBlank = null; multiSelect = []; renderCanvas(); };
     ul.appendChild(li);
   });
   document.getElementById("statCount").textContent = zs.blocks.length;
   document.getElementById("statArea").textContent = area.toLocaleString();
+  renderCategoryChart(zs);
+}
+
+function renderCategoryChart(zs){
+  const box = document.getElementById("categoryChart");
+  if(!box) return;
+  const totals = {};
+  let grand = 0;
+  zs.blocks.forEach(b=>{
+    const a = b.w*UNIT_AREA;
+    totals[b.category] = (totals[b.category]||0) + a;
+    grand += a;
+  });
+  const rows = Object.entries(totals).sort((a,b)=> b[1]-a[1]);
+  if(rows.length===0){ box.innerHTML = `<p class="text-[11px] text-slate-400">배치된 공간이 없습니다.</p>`; return; }
+  box.innerHTML = rows.map(([cat, val])=>{
+    const meta = CATEGORY_META[cat] || CATEGORY_META.common;
+    const pct = grand ? Math.round(val/grand*100) : 0;
+    return `
+      <div>
+        <div class="flex items-center justify-between text-[10.5px] text-slate-500 mb-0.5">
+          <span class="flex items-center gap-1"><span class="swatch" style="background:${meta.color};border-color:${meta.border}"></span>${meta.label}</span>
+          <span>${pct}%</span>
+        </div>
+        <div class="h-1.5 rounded-full bg-slate-100 overflow-hidden">
+          <div style="width:${pct}%; background:${meta.border}; height:100%;"></div>
+        </div>
+      </div>`;
+  }).join("");
 }
 
 function renderGlobalStat(){
@@ -880,34 +1242,42 @@ function renderGlobalStat(){
 }
 
 /* =========================================================
-   10. 상단 유틸리티 - 실제배치 재설정 / 초기화 / 저장 / 이미지
+   10. 상단 유틸리티 - 실제배치 재설정 / 초기화 / 저장 / 이미지 / 실행취소 / 검색 / 시나리오 / CSV
 ========================================================= */
 document.getElementById("btnLoadReal").onclick = ()=>{
   if(zoneState().blocks.length>0){
     if(!confirm(`${ZONE_META[currentZone].name}의 현재 배치를 지우고 2026학년도 교사 배치도 기준으로 되돌릴까요?`)) return;
   }
+  pushUndo();
   state[currentZone] = buildZoneGrid(currentZone);
-  selectedId = null; selectedBlank = null;
+  selectedId = null; selectedBlank = null; multiSelect = [];
   renderCanvas();
 };
 
 document.getElementById("btnResetZone").onclick = ()=>{
   if(!confirm(`${ZONE_META[currentZone].name}의 모든 배치(고정 구역 포함)를 비우고 빈 그리드로 시작할까요?`)) return;
+  pushUndo();
   state[currentZone] = emptyZoneGrid(currentZone);
-  selectedId = null; selectedBlank = null;
+  selectedId = null; selectedBlank = null; multiSelect = [];
   renderCanvas();
 };
 
 document.getElementById("btnResetAll").onclick = ()=>{
   if(!confirm("전체 동의 모든 배치를 초기화할까요? 이 작업은 되돌릴 수 없습니다.")) return;
-  state = initialState();
-  Object.keys(state).forEach(z=> state[z] = emptyZoneGrid(z));
-  selectedId = null; selectedBlank = null;
+  pushUndo();
+  const emptied = {};
+  Object.keys(ZONE_META).forEach(z=> emptied[z] = emptyZoneGrid(z));
+  state = emptied;
+  selectedId = null; selectedBlank = null; multiSelect = [];
   renderAll();
 };
 
+document.getElementById("btnUndo").onclick = undo;
+document.getElementById("btnRedo").onclick = redo;
+updateUndoRedoButtons();
+
 document.getElementById("btnSaveJson").onclick = ()=>{
-  const payload = { savedAt: new Date().toISOString(), state };
+  const payload = { savedAt: new Date().toISOString(), state, scenarios };
   const blob = new Blob([JSON.stringify(payload, null, 2)], {type:"application/json"});
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
@@ -930,15 +1300,18 @@ document.getElementById("fileInput").onchange = ev=>{
         if(!loaded[z]) loaded[z] = emptyZoneGrid(z);
         if(!loaded[z].floors) loaded[z].floors = buildZoneGrid(z).floors;
       });
+      pushUndo();
       state = loaded;
+      scenarios = parsed.scenarios || {};
       let maxId = 0;
       Object.values(state).forEach(zs=> (zs.blocks||[]).forEach(b=>{
         const n = parseInt(String(b.id).replace(/\D/g,""))||0;
         if(n>maxId) maxId = n;
       }));
       idSeq = maxId + 1;
-      selectedId = null; selectedBlank = null;
+      selectedId = null; selectedBlank = null; multiSelect = [];
       renderAll();
+      renderScenarioList();
       alert("배치 데이터를 불러왔습니다.");
     }catch(err){
       alert("JSON 파일을 읽는 중 오류가 발생했습니다: " + err.message);
@@ -957,6 +1330,109 @@ document.getElementById("btnExportImg").onclick = ()=>{
   });
 };
 
+/* ---- 배치 리스트 · 도구 팝업 ---- */
+const managePopupEl = document.getElementById("managePopup");
+document.getElementById("btnManage").onclick = ()=>{
+  managePopupEl.classList.toggle("hidden");
+  if(!managePopupEl.classList.contains("hidden")){
+    renderList(zoneState());
+    renderGlobalStat();
+    renderScenarioList();
+  }
+};
+document.getElementById("managePopupClose").onclick = ()=> managePopupEl.classList.add("hidden");
+
+/* ---- 변경 칸(실제 배치와 차이) 표시 토글 ---- */
+document.getElementById("btnDiffToggle").onclick = ()=>{
+  diffMode = !diffMode;
+  const btn = document.getElementById("btnDiffToggle");
+  btn.textContent = "변경 칸 표시: " + (diffMode ? "켬" : "끔");
+  btn.className = "px-2.5 py-1.5 rounded-lg text-xs font-bold " + (diffMode ? "bg-amber-100 text-amber-700" : "bg-slate-100 text-slate-600 hover:bg-slate-200");
+  renderCanvas();
+};
+
+/* ---- 검색 (현재 동 내 이름/호실번호) ---- */
+document.getElementById("searchInput").oninput = e=>{
+  const q = e.target.value.trim().toLowerCase();
+  if(!q){ renderCanvas(); return; }
+  const zs = zoneState();
+  const matches = zs.blocks.filter(b=>
+    b.name.toLowerCase().includes(q) || (b.num||"").toLowerCase().includes(q));
+  if(matches.length===0) return;
+  selectedId = matches[0].id;
+  selectedBlank = null; multiSelect = [];
+  renderCanvas();
+  const el = canvasEl.querySelector(`[data-id="${matches[0].id}"]`);
+  if(el && el.scrollIntoView) el.scrollIntoView({block:"center", inline:"center", behavior:"smooth"});
+};
+
+/* ---- CSV 내보내기 ---- */
+document.getElementById("btnExportCsv").onclick = ()=>{
+  const rows = [["동","층","이름","호실번호","카테고리","폭(칸)","면적(㎡)","고정여부","메모"]];
+  Object.keys(ZONE_META).forEach(z=>{
+    const zs = state[z];
+    zs.blocks.slice().sort((a,b)=> a.row-b.row || a.col-b.col).forEach(b=>{
+      const floorTxt = z === "D" ? "" : floorLabelText(zs.floors[b.row]);
+      rows.push([
+        ZONE_META[z].name, floorTxt, b.name, b.num||"", (CATEGORY_META[b.category]||{}).label||b.category,
+        b.w, b.w*UNIT_AREA, b.fixed?"고정":"", (b.note||"").replace(/\n/g," ")
+      ]);
+    });
+  });
+  const csv = rows.map(r=> r.map(v=>{
+    const s = String(v);
+    return /[",\n]/.test(s) ? '"' + s.replace(/"/g,'""') + '"' : s;
+  }).join(",")).join("\n");
+  const blob = new Blob(["\uFEFF"+csv], {type:"text/csv;charset=utf-8"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  const ts = new Date().toISOString().slice(0,10).replace(/-/g,"");
+  a.href = url; a.download = `덕영고_공간배치_${ts}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+};
+
+/* ---- 시나리오 저장/전환 ---- */
+function renderScenarioList(){
+  const ul = document.getElementById("scenarioList");
+  if(!ul) return;
+  const names = Object.keys(scenarios);
+  if(names.length===0){ ul.innerHTML = `<li class="text-[11px] text-slate-400">저장된 시나리오가 없습니다.</li>`; return; }
+  ul.innerHTML = "";
+  names.forEach(name=>{
+    const li = document.createElement("li");
+    li.className = "flex items-center justify-between gap-1 px-2 py-1.5 rounded-lg bg-slate-50";
+    li.innerHTML = `
+      <span class="truncate font-semibold text-slate-600">${name}</span>
+      <span class="flex gap-1 flex-shrink-0">
+        <button data-act="load" class="text-[10.5px] font-bold text-indigo-600 hover:underline">불러오기</button>
+        <button data-act="del" class="text-[10.5px] font-bold text-rose-500 hover:underline">삭제</button>
+      </span>
+    `;
+    li.querySelector('[data-act="load"]').onclick = ()=>{
+      if(!confirm(`"${name}" 시나리오를 불러올까요? 현재 화면의 저장하지 않은 변경사항은 실행취소로만 되돌릴 수 있어요.`)) return;
+      pushUndo();
+      state = JSON.parse(JSON.stringify(scenarios[name]));
+      selectedId = null; selectedBlank = null; multiSelect = [];
+      renderAll();
+    };
+    li.querySelector('[data-act="del"]').onclick = ()=>{
+      if(!confirm(`"${name}" 시나리오를 삭제할까요?`)) return;
+      delete scenarios[name];
+      renderScenarioList();
+    };
+    ul.appendChild(li);
+  });
+}
+document.getElementById("scenarioSaveBtn").onclick = ()=>{
+  const input = document.getElementById("scenarioName");
+  const name = input.value.trim();
+  if(!name){ alert("시나리오 이름을 입력해 주세요."); return; }
+  scenarios[name] = JSON.parse(JSON.stringify(state));
+  input.value = "";
+  renderScenarioList();
+};
+
 /* =========================================================
    11. 초기 실행
 ========================================================= */
@@ -969,6 +1445,13 @@ function renderAll(){
 // 최초 접속 시 2026학년도 교사 배치도 데이터를 모든 동에 반영해
 // '현재 배치도' 상태 그대로, 동 전체 구조가 한 화면에 보이도록 시작함
 renderAll();
+
+// 모니터 크기/해상도(창 크기)에 따라 칸 크기를 다시 계산해 반응형으로 재배치
+let resizeTimer = null;
+window.addEventListener("resize", ()=>{
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(()=> renderCanvas(), 120);
+});
 
 })();
 </script>
