@@ -11,16 +11,17 @@
 <style>
   * { font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, 'Malgun Gothic', sans-serif; }
 
-  #canvasWrap { overflow: auto; background:
+  #canvasWrap { overflow: auto; background-color: #fafbfd; }
+
+  #canvas {
+    background-image:
       linear-gradient(90deg, #eef1f6 1px, transparent 1px),
       linear-gradient(#eef1f6 1px, transparent 1px);
-    background-size: 64px 64px;
-    background-color: #fafbfd;
   }
 
   .block {
     position: absolute;
-    border-radius: 10px;
+    border-radius: 8px;
     border-width: 2px;
     border-style: solid;
     box-shadow: 0 1px 3px rgba(15,23,42,.08);
@@ -29,24 +30,32 @@
     justify-content: center;
     align-items: center;
     text-align: center;
-    padding: 4px 6px;
+    padding: 3px 5px;
     cursor: grab;
     user-select: none;
-    transition: box-shadow .12s ease, transform .05s ease;
+    transition: box-shadow .12s ease;
     overflow: hidden;
   }
-  .block:hover { box-shadow: 0 4px 10px rgba(15,23,42,.16); }
+  .block:hover { box-shadow: 0 4px 10px rgba(15,23,42,.18); }
   .block.selected { outline: 3px solid #0f172a; outline-offset: 1px; z-index: 30; }
-  .block.dragging { cursor: grabbing; z-index: 40; opacity: .92; }
+  .block.dragging { cursor: grabbing; z-index: 40; opacity: .9; }
   .block.fixedBlock { cursor: not-allowed; }
-  .block .name { font-weight: 700; font-size: 12px; line-height: 1.2; word-break: keep-all; }
-  .block .num { font-size: 10px; opacity: .6; margin-top: 1px; }
-  .block .badge { position: absolute; top: 3px; left: 4px; font-size: 9px; font-weight: 800; letter-spacing: .02em; padding: 1px 4px; border-radius: 4px; background: rgba(15,23,42,.12); color: #334155; }
-  .resizeHandle {
-    position: absolute; right: 2px; bottom: 2px; width: 12px; height: 12px;
-    cursor: nwse-resize; border-radius: 3px; background: rgba(15,23,42,.28);
+  .block .name { font-weight: 700; font-size: 11.5px; line-height: 1.2; word-break: keep-all; }
+  .block .num { font-size: 9.5px; opacity: .6; margin-top: 1px; }
+  .block .badge { position:absolute; top:2px; left:3px; font-size:8.5px; font-weight:800; letter-spacing:.02em; padding:1px 3px; border-radius:4px; background:rgba(15,23,42,.14); color:#334155; }
+
+  .blankCell {
+    position:absolute; border-radius:8px; border:1.5px dashed #cbd5e1; background:rgba(255,255,255,.5);
+    cursor:copy; transition:.12s;
   }
-  .resizeHandle:hover { background: rgba(15,23,42,.55); }
+  .blankCell:hover { background:#eef2ff; border-color:#818cf8; }
+  .blankCell.blankSelected { border-color:#0f172a; border-style:solid; background:#eef2ff; }
+
+  .resizeHandle {
+    position: absolute; right: 1px; top: 50%; transform: translateY(-50%);
+    width: 8px; height: 22px; cursor: ew-resize; border-radius: 3px; background: rgba(15,23,42,.3);
+  }
+  .resizeHandle:hover { background: rgba(15,23,42,.6); }
 
   .tabBtn { transition: all .12s ease; }
   .tabBtn.active { background: #0f172a; color: #fff; box-shadow: 0 2px 6px rgba(15,23,42,.25); }
@@ -58,6 +67,8 @@
   }
   .sidebarBtn:hover { transform: translateX(2px); }
   .swatch { width:12px; height:12px; border-radius:4px; flex-shrink:0; border:1.5px solid rgba(0,0,0,.15); }
+
+  .rowLabel { display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:800; color:#64748b; background:#f1f5f9; border-radius:8px; }
 
   .scrollbar-thin::-webkit-scrollbar { width:7px; height:7px; }
   .scrollbar-thin::-webkit-scrollbar-thumb { background:#cbd5e1; border-radius:8px; }
@@ -72,14 +83,12 @@
     <div class="w-9 h-9 rounded-xl bg-slate-900 text-white flex items-center justify-center font-extrabold text-sm">덕</div>
     <div>
       <h1 class="text-base font-extrabold text-slate-900 leading-tight">덕영고 공간재구조화 인터랙티브 시뮬레이터</h1>
-      <p class="text-[11px] text-slate-400 leading-tight">2026학년도 교사 배치도 기반 · 회의용 실시간 배치 기획 도구</p>
+      <p class="text-[11px] text-slate-400 leading-tight">2026학년도 교사 배치도 기반 · 동(건물) 전체 배치를 한눈에 보고 계획하는 도구</p>
     </div>
   </div>
   <div class="flex items-center gap-2 flex-wrap">
-    <button id="btnLoadReal" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-indigo-600 text-white hover:bg-indigo-700 flex items-center gap-1.5">
-      현재 층 실제 배치 불러오기
-    </button>
-    <button id="btnResetFloor" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200">현재 층 초기화</button>
+    <button id="btnLoadReal" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-indigo-600 text-white hover:bg-indigo-700">이 동 실제 배치로 재설정</button>
+    <button id="btnResetZone" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200">현재 동 전체 비우기</button>
     <button id="btnResetAll" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-rose-50 text-rose-500 hover:bg-rose-100">전체 초기화</button>
     <div class="w-px h-6 bg-slate-200 mx-1"></div>
     <button id="btnSaveJson" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200">JSON 저장</button>
@@ -89,50 +98,46 @@
   </div>
 </header>
 
-<!-- ===== 동 / 층 탭 ===== -->
+<!-- ===== 동 탭 ===== -->
 <div class="bg-white border-b border-slate-200 px-5 py-2.5 flex flex-wrap items-center gap-4 sticky top-[57px] z-40">
   <div id="zoneTabs" class="flex gap-1.5 bg-slate-100 p-1 rounded-xl"></div>
-  <div class="w-px h-6 bg-slate-200 hidden sm:block"></div>
-  <div id="floorTabs" class="flex gap-1.5 bg-slate-100 p-1 rounded-xl"></div>
-  <div class="ml-auto text-[11px] text-slate-400">그리드 1칸 ≈ 4㎡ (계획 참고용 · 실측 아님)</div>
+  <div class="text-[11px] text-slate-400 leading-snug">
+    각 행 = 해당 동의 한 개 층(건물 전체 구조를 한 화면에 표시) · 회색 칸 = 계단/화장실/현관 등 구조상 고정 공간 · 점선 빈 칸 = 배치 가능 공간
+  </div>
+  <div class="ml-auto text-[11px] text-slate-400">가로 1칸 ≈ 20㎡ (계획 참고용 · 실측 아님)</div>
 </div>
 
 <!-- ===== 메인 레이아웃 ===== -->
 <main class="grid grid-cols-1 lg:grid-cols-[240px_1fr_300px] gap-4 p-4 items-start">
 
   <!-- 좌측 패널 -->
-  <aside class="bg-white rounded-2xl border border-slate-200 shadow-sm p-3 max-h-[78vh] overflow-y-auto scrollbar-thin space-y-4">
+  <aside class="bg-white rounded-2xl border border-slate-200 shadow-sm p-3 max-h-[80vh] overflow-y-auto scrollbar-thin space-y-4">
     <div>
-      <p class="text-[11px] font-bold text-slate-400 px-1 mb-1">공간 블록을 클릭하거나 캔버스로 드래그하세요</p>
+      <p class="text-[11px] font-bold text-slate-400 px-1 mb-1">캔버스의 빈 칸(점선)을 먼저 클릭한 뒤 아래 블록을 클릭하거나, 블록을 빈 칸으로 바로 드래그하세요</p>
     </div>
     <div id="paletteRoot" class="space-y-4"></div>
   </aside>
 
   <!-- 중앙 캔버스 -->
   <section class="bg-white rounded-2xl border border-slate-200 shadow-sm p-3">
-    <div class="flex items-center justify-between mb-2 px-1">
+    <div class="flex items-center justify-between mb-2 px-1 flex-wrap gap-1">
       <h2 id="canvasTitle" class="text-sm font-extrabold text-slate-700"></h2>
-      <p class="text-[11px] text-slate-400">블록 클릭: 선택/편집 · 드래그: 이동 · 우측 하단 손잡이: 크기 조절 · Delete키: 삭제</p>
+      <p class="text-[11px] text-slate-400">블록 클릭: 선택/편집 · 드래그: 이동 · 오른쪽 가장자리 손잡이: 벽 허물고 면적 넓히기/좁히기 · Shift+클릭: 옆 공간과 병합 · Delete키: 삭제</p>
     </div>
-    <div id="canvasWrap" class="relative rounded-xl border border-slate-200" style="height:66vh;">
-      <div id="canvas" class="relative"></div>
-    </div>
-
-    <div class="mt-4 pt-4 border-t border-slate-100">
-      <div class="flex items-center justify-between mb-2 px-1">
-        <h2 class="text-sm font-extrabold text-slate-700">건물 전체 배치도 <span id="overviewZoneName" class="text-slate-400 font-semibold"></span></h2>
-        <p class="text-[11px] text-slate-400">전 층 실시간 미리보기 · 클릭 시 해당 층으로 이동</p>
+    <div id="canvasWrap" class="relative rounded-xl border border-slate-200" style="height:70vh;">
+      <div class="flex" style="min-height:100%;">
+        <div id="rowLabels" class="flex flex-col flex-shrink-0 sticky left-0 z-20 bg-white/90 backdrop-blur-sm p-1 gap-[3px]"></div>
+        <div id="canvas" class="relative flex-shrink-0"></div>
       </div>
-      <div id="buildingOverview" class="flex flex-wrap gap-3"></div>
     </div>
   </section>
 
   <!-- 우측 분석 패널 -->
-  <aside class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 max-h-[78vh] overflow-y-auto scrollbar-thin space-y-5">
+  <aside class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 max-h-[80vh] overflow-y-auto scrollbar-thin space-y-5">
     <div id="editPanel"></div>
 
     <div>
-      <h3 class="text-sm font-extrabold text-slate-700 mb-2">현재 층 배치 리스트</h3>
+      <h3 class="text-sm font-extrabold text-slate-700 mb-2">현재 동 배치 리스트</h3>
       <div class="flex items-center justify-between text-xs bg-slate-50 rounded-lg px-3 py-2 mb-2 font-bold text-slate-600">
         <span>배치 수 <span id="statCount">0</span>개</span>
         <span>면적 합계 <span id="statArea">0</span>㎡</span>
@@ -141,7 +146,7 @@
     </div>
 
     <div>
-      <h3 class="text-sm font-extrabold text-slate-700 mb-2">전체(全동·全층) 요약</h3>
+      <h3 class="text-sm font-extrabold text-slate-700 mb-2">전체(全동) 요약</h3>
       <div class="text-xs bg-slate-50 rounded-lg px-3 py-2 text-slate-600 font-semibold" id="globalStat"></div>
     </div>
   </aside>
@@ -154,20 +159,21 @@
 /* =========================================================
    1. 기본 데이터 정의
 ========================================================= */
-const CELL = 68;      // 셀 1개 픽셀 크기
-const COLS = 12;       // 자동배치 시 사용하는 기준 열 수
-const UNIT_AREA = 4;   // 1칸 = 4㎡ (참고용)
+const CELL_W = 84;
+const CELL_H = 62;
+const GRID_PAD_COLS = 4;   // 실제 배치 오른쪽에 여유 칸을 더 둬서 새 공간을 만들 수 있게 함
+const UNIT_AREA = 20;      // 가로 1칸 ≈ 20㎡ (참고용)
 
 const ZONE_META = {
-  C: { name: "창조관", floors: [1,2,3,4] },
-  V: { name: "비전관", floors: [1,2,3] },
-  W: { name: "서관",   floors: [1,2,3,4] },
-  E: { name: "동관",   floors: [1,2] },
-  D: { name: "덕영관", floors: [1] },
+  C: { name: "창조관" },
+  V: { name: "비전관" },
+  W: { name: "서관" },
+  E: { name: "동관" },
+  D: { name: "덕영관" },
 };
 
 const CATEGORY_META = {
-  fixed:     { label:"고정 구역",            color:"#d9dde3", border:"#9aa1ac" },
+  fixed:     { label:"고정 구역(계단/화장실/현관 등)", color:"#d9dde3", border:"#9aa1ac" },
   design:    { label:"디자인/미디어 실습실",  color:"#fbcfe8", border:"#ec4899" },
   swit:      { label:"SW/IT/회계 실습실",     color:"#bae6fd", border:"#0ea5e9" },
   special:   { label:"특별교육/외국어실",     color:"#ddd6fe", border:"#8b5cf6" },
@@ -218,21 +224,24 @@ const PALETTE = [
       {name:"간호실습실"},
   ]},
   { key:"common", items:[
-      {name:"메이커스페이스", size:{w:3,h:2}},
+      {name:"메이커스페이스", size:{w:3}},
       {name:"학생휴게실"},
-      {name:"휴게 및 전시실", size:{w:3,h:2}},
-      {name:"북카페/도서관", size:{w:3,h:2}},
+      {name:"휴게 및 전시실", size:{w:2}},
+      {name:"북카페/도서관", size:{w:2}},
       {name:"비전룸"},
   ]},
 ];
 
 /* =========================================================
    2. 실제 교사 배치도(2026) 기반 초기 데이터
+   각 동은 "행 = 층"인 하나의 건물 전체 그리드로 표현됩니다.
    (문서 상 나열 순서를 기준으로 층별 클러스터를 근사 배정한
     "계획 참고용" 스캐폴드입니다 — 실제 위치와 정확히 일치하지
-    않을 수 있으며, 불러온 뒤 자유롭게 재배치할 수 있습니다.)
+    않을 수 있으며, 자유롭게 재배치·병합·면적조정할 수 있습니다.)
 ========================================================= */
 function R(name, num, category, opt){ return Object.assign({name, num, category}, opt||{}); }
+
+const FLOORS_BY_ZONE = { C:[4,3,2,1], V:[3,2,1], W:[4,3,2,1], E:[2,1], D:[1] };
 
 const ROOM_DATA = {
   C: {
@@ -282,35 +291,26 @@ const ROOM_DATA = {
       R("화장실(여)","","fixed",{fixed:true}),
       R("학습1실","171","common"),
       R("학습2실","172","common"),
-      R("휴게 및 전시실","173","common",{size:{w:3,h:2}}),
+      R("휴게 및 전시실","173","common",{size:{w:2}}),
       R("일본어실","174","special"),
       R("중국어실","174-2","special"),
       R("화장실(남)","175","fixed",{fixed:true}),
       R("음악실","166","special"),
       R("다목적회의실(산학협력실)","167","common"),
       R("비전룸","168","common"),
-      R("북카페/도서관","169","common",{size:{w:3,h:2}}),
+      R("북카페/도서관","169","common",{size:{w:2}}),
       R("바리스타실","170","common"),
       R("현관","","fixed",{fixed:true}),
     ],
   },
   V: {
-    1: [
-      R("일시적 관찰실","113","admin"),
-      R("성적처리실","114","admin"),
-      R("인쇄실","115","admin"),
-      R("직업교육부","116","admin"),
-      R("교장실","117","admin"),
-      R("숙직실","118","admin"),
-      R("행정실","119","admin"),
-      R("법인실","120","admin"),
-      R("학부모회의실","123","admin"),
-      R("큰 교무실","124","admin",{size:{w:3,h:2}}),
-      R("인쇄 문서고","144","fixed",{fixed:true}),
-      R("진로체험공간(Space-X)","111","common"),
-      R("공실","112","fixed",{fixed:true}),
+    3: [
+      R("3-1","126","classroom"), R("3-2","127","classroom"),
+      R("3-3","128","classroom"), R("3-4","129","classroom"),
+      R("3-5","130","classroom"), R("3-6","131","classroom"),
+      R("3-7","132","classroom"), R("3-8","133","classroom"),
+      R("3-9","134","classroom"),
       R("계단","","fixed",{fixed:true}),
-      R("현관","","fixed",{fixed:true}),
     ],
     2: [
       R("2-3","135","classroom"),
@@ -324,13 +324,22 @@ const ROOM_DATA = {
       R("위클래스/성고충상담실","143","admin"),
       R("계단","","fixed",{fixed:true}),
     ],
-    3: [
-      R("3-1","126","classroom"), R("3-2","127","classroom"),
-      R("3-3","128","classroom"), R("3-4","129","classroom"),
-      R("3-5","130","classroom"), R("3-6","131","classroom"),
-      R("3-7","132","classroom"), R("3-8","133","classroom"),
-      R("3-9","134","classroom"),
+    1: [
+      R("일시적 관찰실","113","admin"),
+      R("성적처리실","114","admin"),
+      R("인쇄실","115","admin"),
+      R("직업교육부","116","admin"),
+      R("교장실","117","admin"),
+      R("숙직실","118","admin"),
+      R("행정실","119","admin"),
+      R("법인실","120","admin"),
+      R("학부모회의실","123","admin"),
+      R("큰 교무실","124","admin",{size:{w:2}}),
+      R("인쇄 문서고","144","fixed",{fixed:true}),
+      R("진로체험공간(Space-X)","111","common"),
+      R("공실","112","fixed",{fixed:true}),
       R("계단","","fixed",{fixed:true}),
+      R("현관","","fixed",{fixed:true}),
     ],
   },
   W: {
@@ -361,6 +370,13 @@ const ROOM_DATA = {
     ],
   },
   E: {
+    2: [
+      R("기초간호임상실무실","155","health"),
+      R("간호의기초실","156","health"),
+      R("요양지원실","157","health"),
+      R("메이커스페이스","158","common",{size:{w:2}}),
+      R("화장실(남,여)","","fixed",{fixed:true}),
+    ],
     1: [
       R("보일러실","151","fixed",{fixed:true}),
       R("문서고 및 창고","152","fixed",{fixed:true}),
@@ -369,121 +385,115 @@ const ROOM_DATA = {
       R("소규모학습실(보건)","154","admin"),
       R("화장실(여)","","fixed",{fixed:true}), R("화장실(남)","","fixed",{fixed:true}),
     ],
-    2: [
-      R("기초간호임상실무실","155","health"),
-      R("간호의기초실","156","health"),
-      R("요양지원실","157","health"),
-      R("메이커스페이스","158","common",{size:{w:3,h:2}}),
-      R("화장실(남,여)","","fixed",{fixed:true}),
-    ],
-  },
-  D: {
-    1: [
-      R("체육관","243","common",{fixed:true,size:{w:4,h:3}}),
-      R("조리실/식당","242","common",{fixed:true,size:{w:3,h:2}}),
-      R("필로티","","fixed",{fixed:true}),
-      R("통학로","","fixed",{fixed:true}),
-      R("계단","","fixed",{fixed:true}), R("계단","","fixed",{fixed:true}),
-    ],
   },
 };
 
 /* =========================================================
-   3. 상태 관리
+   3. 상태 관리 - 동(건물) 전체 그리드 (행 = 층)
 ========================================================= */
 let idSeq = 1;
 function newId(){ return "b" + (idSeq++); }
 
-function emptyState(){
-  const s = {};
-  Object.keys(ZONE_META).forEach(z=>{
-    s[z] = {};
-    ZONE_META[z].floors.forEach(f=> s[z][f] = []);
+function buildRowBlocks(items, row){
+  let col = 0;
+  const blocks = [];
+  items.forEach(it=>{
+    const w = (it.size && it.size.w) || 1;
+    blocks.push({
+      id:newId(), row, col, w, h:1,
+      name:it.name, num:it.num||"", category:it.category, fixed:!!it.fixed,
+    });
+    col += w;
   });
+  return { blocks, width: col };
+}
+
+function buildZoneGrid(zone){
+  if(zone === "D"){
+    const blocks = [
+      {id:newId(),row:0,col:0,w:1,h:1,name:"계단",num:"",category:"fixed",fixed:true},
+      {id:newId(),row:0,col:1,w:1,h:1,name:"계단",num:"",category:"fixed",fixed:true},
+      {id:newId(),row:0,col:2,w:1,h:3,name:"필로티",num:"",category:"fixed",fixed:true},
+      {id:newId(),row:0,col:3,w:1,h:3,name:"통학로",num:"",category:"fixed",fixed:true},
+      {id:newId(),row:1,col:0,w:1,h:1,name:"체육관",num:"243",category:"common",fixed:true},
+      {id:newId(),row:1,col:1,w:1,h:1,name:"조리실/식당",num:"242",category:"common",fixed:true},
+      {id:newId(),row:2,col:0,w:1,h:1,name:"계단",num:"",category:"fixed",fixed:true},
+      {id:newId(),row:2,col:1,w:1,h:1,name:"계단",num:"",category:"fixed",fixed:true},
+    ];
+    return { rows:3, cols:4+GRID_PAD_COLS, blocks, floors:[1,1,1] };
+  }
+  const floors = FLOORS_BY_ZONE[zone];
+  let allBlocks = [];
+  let maxW = 0;
+  floors.forEach((f, i)=>{
+    const items = ROOM_DATA[zone][f] || [];
+    const { blocks, width } = buildRowBlocks(items, i);
+    allBlocks = allBlocks.concat(blocks);
+    maxW = Math.max(maxW, width);
+  });
+  return { rows: floors.length, cols: maxW + GRID_PAD_COLS, blocks: allBlocks, floors };
+}
+
+function emptyZoneGrid(zone){
+  const g = buildZoneGrid(zone);
+  return { rows:g.rows, cols:g.cols, blocks:[], floors:g.floors };
+}
+
+function initialState(){
+  const s = {};
+  Object.keys(ZONE_META).forEach(z=> s[z] = buildZoneGrid(z));
   return s;
 }
-let state = emptyState();
+
+let state = initialState();
 let currentZone = "C";
-let currentFloor = 1;
 let selectedId = null;
+let selectedBlank = null; // {row, col}
 
-function currentBlocks(){ return state[currentZone][currentFloor]; }
+function zoneState(){ return state[currentZone]; }
 
-function defaultSize(category, name, override){
-  if(override) return override;
-  if(category === "fixed") return {w:1,h:1};
-  return {w:2,h:2};
+/* =========================================================
+   4. 그리드 유틸
+========================================================= */
+function findBlockAt(zoneS, row, col){
+  return zoneS.blocks.find(b => row >= b.row && row < b.row + b.h && col >= b.col && col < b.col + b.w);
 }
-
-/* 겹치지 않는 빈 자리 탐색 */
-function overlaps(col,row,w,h,list,ignoreId){
-  for(const b of list){
-    if(b.id === ignoreId) continue;
-    if(col < b.col + b.w && col + w > b.col && row < b.row + b.h && row + h > b.row) return true;
-  }
-  return false;
-}
-function findFreeSpot(w,h,list){
-  for(let row=0; row<300; row++){
-    for(let col=0; col<=COLS-w; col++){
-      if(!overlaps(col,row,w,h,list)) return {col,row};
+function rectFree(zoneS, row, col, w, h, ignoreId){
+  if(col < 0 || row < 0 || col + w > zoneS.cols || row + h > zoneS.rows) return false;
+  for(let r = row; r < row + h; r++){
+    for(let c = col; c < col + w; c++){
+      const hit = findBlockAt(zoneS, r, c);
+      if(hit && hit.id !== ignoreId) return false;
     }
   }
-  return {col:0,row:0};
+  return true;
 }
-
-/* 실제 배치 데이터를 자동으로 그리드에 흘려 배치 */
-function autoLayout(items){
-  let col=0, row=0, rowH=0;
-  const out = [];
-  items.forEach(it=>{
-    const size = it.size || defaultSize(it.category, it.name);
-    if(col + size.w > COLS){ col = 0; row += rowH; rowH = 0; }
-    out.push(Object.assign({
-      id: newId(), col, row, w:size.w, h:size.h,
-      fixed: !!it.fixed,
-    }, { name: it.name, num: it.num || "", category: it.category }));
-    col += size.w;
-    rowH = Math.max(rowH, size.h);
-  });
-  return out;
+function findFirstFreeCell(zoneS, w){
+  for(let r=0; r<zoneS.rows; r++){
+    for(let c=0; c<=zoneS.cols-w; c++){
+      if(rectFree(zoneS, r, c, w, 1)) return {row:r, col:c};
+    }
+  }
+  return null;
 }
 
 /* =========================================================
-   4. 렌더링 - 탭
+   5. 렌더링 - 동 탭
 ========================================================= */
 const zoneTabsEl = document.getElementById("zoneTabs");
-const floorTabsEl = document.getElementById("floorTabs");
-
 function renderZoneTabs(){
   zoneTabsEl.innerHTML = "";
   Object.keys(ZONE_META).forEach(z=>{
     const btn = document.createElement("button");
     btn.className = "tabBtn px-3.5 py-1.5 rounded-lg text-xs font-bold text-slate-500" + (z===currentZone?" active":"");
     btn.textContent = ZONE_META[z].name;
-    btn.onclick = ()=>{
-      currentZone = z;
-      if(!ZONE_META[z].floors.includes(currentFloor)) currentFloor = ZONE_META[z].floors[0];
-      selectedId = null;
-      renderAll();
-    };
+    btn.onclick = ()=>{ currentZone = z; selectedId = null; selectedBlank = null; renderAll(); };
     zoneTabsEl.appendChild(btn);
   });
 }
 
-function renderFloorTabs(){
-  floorTabsEl.innerHTML = "";
-  ZONE_META[currentZone].floors.forEach(f=>{
-    const btn = document.createElement("button");
-    btn.className = "tabBtn px-3.5 py-1.5 rounded-lg text-xs font-bold text-slate-500" + (f===currentFloor?" active":"");
-    btn.textContent = f + "층";
-    btn.onclick = ()=>{ currentFloor = f; selectedId = null; renderAll(); };
-    floorTabsEl.appendChild(btn);
-  });
-}
-
 /* =========================================================
-   5. 렌더링 - 좌측 팔레트
+   6. 렌더링 - 좌측 팔레트
 ========================================================= */
 const paletteRoot = document.getElementById("paletteRoot");
 function renderPalette(){
@@ -534,50 +544,84 @@ function renderPalette(){
 }
 
 function addBlockFromPalette(category, item){
-  const list = currentBlocks();
-  const size = item.size || defaultSize(category, item.name);
-  const spot = findFreeSpot(size.w, size.h, list);
-  list.push({
-    id: newId(), name:item.name, num:"", category,
-    col:spot.col, row:spot.row, w:size.w, h:size.h,
-    fixed: !!item.fixed,
+  const zs = zoneState();
+  const w = (item.size && item.size.w) || 1;
+  let target = null;
+  if(selectedBlank && rectFree(zs, selectedBlank.row, selectedBlank.col, w, 1)){
+    target = selectedBlank;
+  } else {
+    target = findFirstFreeCell(zs, w);
+  }
+  if(!target){ alert("현재 동에 배치할 빈 공간이 없습니다. 다른 블록의 크기를 줄이거나 삭제한 뒤 다시 시도해 주세요."); return; }
+  zs.blocks.push({
+    id:newId(), name:item.name, num:"", category,
+    row:target.row, col:target.col, w, h:1, fixed:!!item.fixed,
   });
   selectedId = null;
-  renderAll();
+  selectedBlank = null;
+  renderCanvas();
 }
 
 /* =========================================================
-   6. 렌더링 - 캔버스 (블록 드래그 / 리사이즈 / 선택)
+   7. 렌더링 - 캔버스 (건물 전체 그리드: 드래그 / 폭 조정 / 병합 / 선택)
 ========================================================= */
 const canvasEl = document.getElementById("canvas");
 const canvasWrapEl = document.getElementById("canvasWrap");
 const canvasTitleEl = document.getElementById("canvasTitle");
+const rowLabelsEl = document.getElementById("rowLabels");
 
-function gridBounds(list){
-  let maxCol = COLS, maxRow = 8;
-  list.forEach(b=>{
-    maxCol = Math.max(maxCol, b.col + b.w + 1);
-    maxRow = Math.max(maxRow, b.row + b.h + 1);
-  });
-  return {maxCol, maxRow};
+function renderRowLabels(zs){
+  rowLabelsEl.innerHTML = "";
+  rowLabelsEl.style.paddingTop = "0px";
+  for(let r=0; r<zs.rows; r++){
+    const lab = document.createElement("div");
+    lab.className = "rowLabel";
+    lab.style.width = "40px";
+    lab.style.height = CELL_H + "px";
+    const floorNum = zs.floors[r];
+    lab.textContent = currentZone === "D" ? "" : (floorNum + "층");
+    rowLabelsEl.appendChild(lab);
+  }
 }
 
 function renderCanvas(){
-  canvasTitleEl.textContent = `${ZONE_META[currentZone].name} · ${currentFloor}층 배치도`;
-  const list = currentBlocks();
-  const {maxCol, maxRow} = gridBounds(list);
-  canvasEl.style.width = (maxCol*CELL) + "px";
-  canvasEl.style.height = (maxRow*CELL) + "px";
+  const zs = zoneState();
+  canvasTitleEl.textContent = `${ZONE_META[currentZone].name} 건물 전체 배치도`;
+  canvasEl.style.width = (zs.cols*CELL_W) + "px";
+  canvasEl.style.height = (zs.rows*CELL_H) + "px";
+  canvasEl.style.backgroundSize = CELL_W + "px " + CELL_H + "px";
   canvasEl.innerHTML = "";
+  renderRowLabels(zs);
 
-  list.forEach(b=>{
-    const meta = CATEGORY_META[b.category];
+  // 빈 칸(점선) 먼저 렌더링
+  for(let r=0; r<zs.rows; r++){
+    for(let c=0; c<zs.cols; c++){
+      if(findBlockAt(zs, r, c)) continue;
+      const cell = document.createElement("div");
+      const isSel = selectedBlank && selectedBlank.row===r && selectedBlank.col===c;
+      cell.className = "blankCell" + (isSel ? " blankSelected" : "");
+      cell.style.left = (c*CELL_W+2) + "px";
+      cell.style.top = (r*CELL_H+2) + "px";
+      cell.style.width = (CELL_W-6) + "px";
+      cell.style.height = (CELL_H-6) + "px";
+      cell.addEventListener("click", ()=>{
+        selectedBlank = {row:r, col:c};
+        selectedId = null;
+        renderCanvas();
+      });
+      canvasEl.appendChild(cell);
+    }
+  }
+
+  // 블록 렌더링
+  zs.blocks.forEach(b=>{
+    const meta = CATEGORY_META[b.category] || CATEGORY_META.common;
     const div = document.createElement("div");
     div.className = "block" + (b.id===selectedId?" selected":"") + (b.fixed?" fixedBlock":"");
-    div.style.left = (b.col*CELL) + "px";
-    div.style.top = (b.row*CELL) + "px";
-    div.style.width = (b.w*CELL - 5) + "px";
-    div.style.height = (b.h*CELL - 5) + "px";
+    div.style.left = (b.col*CELL_W+2) + "px";
+    div.style.top = (b.row*CELL_H+2) + "px";
+    div.style.width = (b.w*CELL_W-6) + "px";
+    div.style.height = (b.h*CELL_H-6) + "px";
     div.style.background = meta.color;
     div.style.borderColor = meta.border;
     div.dataset.id = b.id;
@@ -597,72 +641,21 @@ function renderCanvas(){
     canvasEl.appendChild(div);
   });
 
-  renderList(list);
+  renderList(zs);
   renderEditPanel();
   renderGlobalStat();
-  renderBuildingOverview();
 }
 
-/* =========================================================
-   6-1. 건물 전체 배치도 (현재 동의 전 층 실시간 미리보기)
-========================================================= */
-const overviewEl = document.getElementById("buildingOverview");
-const overviewZoneNameEl = document.getElementById("overviewZoneName");
-const MINI_CELL = 7;
-
-function renderBuildingOverview(){
-  overviewZoneNameEl.textContent = "· " + ZONE_META[currentZone].name;
-  overviewEl.innerHTML = "";
-  ZONE_META[currentZone].floors.slice().reverse().forEach(f=>{
-    const list = state[currentZone][f];
-    const {maxCol, maxRow} = gridBounds(list);
-    const w = maxCol * MINI_CELL, h = maxRow * MINI_CELL;
-    const isActive = f === currentFloor;
-
-    const card = document.createElement("div");
-    card.className = "rounded-xl border-2 p-2 cursor-pointer transition hover:shadow-md " +
-      (isActive ? "border-slate-900 bg-slate-50" : "border-slate-200 bg-white");
-
-    const header = document.createElement("div");
-    header.className = "text-[11px] font-extrabold text-slate-600 mb-1.5 flex items-center justify-between gap-3";
-    header.innerHTML = `<span>${f}층</span><span class="text-slate-400 font-semibold">${list.length}개</span>`;
-    card.appendChild(header);
-
-    const mini = document.createElement("div");
-    mini.className = "relative rounded-md bg-slate-50 border border-slate-100";
-    mini.style.width = w + "px";
-    mini.style.height = h + "px";
-    list.forEach(b=>{
-      const rect = document.createElement("div");
-      rect.title = b.name;
-      rect.style.position = "absolute";
-      rect.style.left = (b.col*MINI_CELL) + "px";
-      rect.style.top = (b.row*MINI_CELL) + "px";
-      rect.style.width = Math.max(2, b.w*MINI_CELL - 1) + "px";
-      rect.style.height = Math.max(2, b.h*MINI_CELL - 1) + "px";
-      rect.style.background = CATEGORY_META[b.category].color;
-      rect.style.border = "1px solid " + CATEGORY_META[b.category].border;
-      rect.style.borderRadius = "2px";
-      mini.appendChild(rect);
-    });
-    card.appendChild(mini);
-    card.style.minWidth = Math.max(w + 16, 96) + "px";
-
-    card.onclick = ()=>{
-      currentFloor = f;
-      selectedId = null;
-      renderFloorTabs();
-      renderCanvas();
-    };
-    overviewEl.appendChild(card);
-  });
-}
-
-let dragCtx = null;
+/* ---- 드래그 이동 (동일 동 내 임의 위치로 이동, 다른 층 행으로도 이동 가능) ---- */
 function startDrag(ev, block){
+  if(ev.shiftKey){
+    handleShiftMerge(block);
+    return;
+  }
   ev.preventDefault();
+  const zs = zoneState();
   const startX = ev.clientX, startY = ev.clientY;
-  const startLeft = block.col*CELL, startTop = block.row*CELL;
+  const startLeft = block.col*CELL_W, startTop = block.row*CELL_H;
   let moved = false;
   const el = canvasEl.querySelector(`[data-id="${block.id}"]`);
 
@@ -671,22 +664,29 @@ function startDrag(ev, block){
     if(Math.abs(dx) > 4 || Math.abs(dy) > 4) moved = true;
     if(!moved || block.fixed) return;
     el.classList.add("dragging");
-    el.style.left = (startLeft + dx) + "px";
-    el.style.top = (startTop + dy) + "px";
+    el.style.left = (startLeft + dx + 2) + "px";
+    el.style.top = (startTop + dy + 2) + "px";
   }
   function onUp(e){
     document.removeEventListener("mousemove", onMove);
     document.removeEventListener("mouseup", onUp);
     if(moved && !block.fixed){
       const dx = e.clientX - startX, dy = e.clientY - startY;
-      let newCol = Math.round((startLeft+dx)/CELL);
-      let newRow = Math.round((startTop+dy)/CELL);
-      newCol = Math.max(0, newCol);
-      newRow = Math.max(0, newRow);
-      block.col = newCol; block.row = newRow;
+      let newCol = Math.round((startLeft+dx)/CELL_W);
+      let newRow = Math.round((startTop+dy)/CELL_H);
+      newCol = Math.max(0, Math.min(newCol, zs.cols - block.w));
+      newRow = Math.max(0, Math.min(newRow, zs.rows - block.h));
+      if(rectFree(zs, newRow, newCol, block.w, block.h, block.id)){
+        block.row = newRow; block.col = newCol;
+      } else {
+        // 충돌 시 원위치로 되돌림
+      }
+      selectedId = block.id;
+      selectedBlank = null;
       renderCanvas();
     } else {
       selectedId = block.id;
+      selectedBlank = null;
       renderCanvas();
     }
   }
@@ -694,51 +694,84 @@ function startDrag(ev, block){
   document.addEventListener("mouseup", onUp);
 }
 
+/* ---- 오른쪽 가장자리 드래그: 벽 허물기(폭 넓히기) / 벽 세우기(폭 줄이기) ---- */
 function startResize(ev, block){
   ev.preventDefault(); ev.stopPropagation();
-  const startX = ev.clientX, startY = ev.clientY;
-  const startW = block.w, startH = block.h;
+  const zs = zoneState();
+  const startX = ev.clientX;
+  const startW = block.w;
   const el = canvasEl.querySelector(`[data-id="${block.id}"]`);
+  let pendingW = startW;
+
   function onMove(e){
-    const dx = e.clientX - startX, dy = e.clientY - startY;
-    const newW = Math.max(1, startW + Math.round(dx/CELL));
-    const newH = Math.max(1, startH + Math.round(dy/CELL));
-    el.style.width = (newW*CELL-5)+"px";
-    el.style.height = (newH*CELL-5)+"px";
-    el._pendingW = newW; el._pendingH = newH;
+    const dx = e.clientX - startX;
+    let newW = Math.max(1, startW + Math.round(dx/CELL_W));
+    newW = Math.min(newW, zs.cols - block.col);
+    // 옆 칸이 이미 채워져 있으면(다른 블록/고정칸) 그 앞에서 멈춤
+    while(newW > startW && !rectFree(zs, block.row, block.col, newW, 1, block.id)) newW--;
+    pendingW = Math.max(1, newW);
+    el.style.width = (pendingW*CELL_W-6) + "px";
   }
   function onUp(){
     document.removeEventListener("mousemove", onMove);
     document.removeEventListener("mouseup", onUp);
-    if(el._pendingW){ block.w = el._pendingW; block.h = el._pendingH; }
+    block.w = pendingW;
     selectedId = block.id;
+    selectedBlank = null;
     renderCanvas();
   }
   document.addEventListener("mousemove", onMove);
   document.addEventListener("mouseup", onUp);
 }
 
+/* ---- Shift+클릭: 인접한 두 공간의 벽을 허물어 하나로 병합 ---- */
+function handleShiftMerge(clicked){
+  if(!selectedId || selectedId === clicked.id){ selectedId = clicked.id; renderCanvas(); return; }
+  const zs = zoneState();
+  const a = zs.blocks.find(b=>b.id===selectedId);
+  if(!a){ selectedId = clicked.id; renderCanvas(); return; }
+  const b = clicked;
+  if(a.fixed || b.fixed){ alert("고정 공간은 병합할 수 없습니다."); return; }
+  const sameRow = a.row === b.row && a.h === 1 && b.h === 1;
+  const adjacent = sameRow && (a.col + a.w === b.col || b.col + b.w === a.col);
+  if(!adjacent){ alert("같은 층에서 서로 맞닿아 있는 공간끼리만 병합할 수 있어요."); return; }
+  const left = a.col < b.col ? a : b;
+  const right = a.col < b.col ? b : a;
+  left.w = left.w + right.w;
+  left.name = `${left.name} + ${right.name}`;
+  zs.blocks = zs.blocks.filter(x=> x.id !== right.id);
+  selectedId = left.id;
+  selectedBlank = null;
+  renderCanvas();
+}
+
+/* ---- 드래그 앤 드롭 (팔레트 -> 빈 칸) ---- */
 canvasEl.addEventListener("dragover", ev=> ev.preventDefault());
 canvasEl.addEventListener("drop", ev=>{
   ev.preventDefault();
   const raw = ev.dataTransfer.getData("text/plain");
   if(!raw) return;
   const {cat, item} = JSON.parse(raw);
+  const zs = zoneState();
   const rect = canvasEl.getBoundingClientRect();
-  const size = item.size || defaultSize(cat, item.name);
-  let col = Math.round((ev.clientX - rect.left)/CELL);
-  let row = Math.round((ev.clientY - rect.top)/CELL);
-  col = Math.max(0, col); row = Math.max(0, row);
-  currentBlocks().push({
-    id:newId(), name:item.name, num:"", category:cat,
-    col, row, w:size.w, h:size.h, fixed:!!item.fixed,
-  });
+  const w = (item.size && item.size.w) || 1;
+  let col = Math.floor((ev.clientX - rect.left)/CELL_W);
+  let row = Math.floor((ev.clientY - rect.top)/CELL_H);
+  col = Math.max(0, Math.min(col, zs.cols - w));
+  row = Math.max(0, Math.min(row, zs.rows - 1));
+  if(!rectFree(zs, row, col, w, 1)){
+    const spot = findFirstFreeCell(zs, w);
+    if(!spot){ alert("배치할 빈 공간이 없습니다."); return; }
+    row = spot.row; col = spot.col;
+  }
+  zs.blocks.push({ id:newId(), name:item.name, num:"", category:cat, row, col, w, h:1, fixed:!!item.fixed });
+  selectedId = null; selectedBlank = null;
   renderCanvas();
 });
 
 canvasWrapEl.addEventListener("mousedown", ev=>{
   if(ev.target === canvasWrapEl || ev.target === canvasEl){
-    selectedId = null;
+    selectedId = null; selectedBlank = null;
     renderCanvas();
   }
 });
@@ -752,21 +785,23 @@ document.addEventListener("keydown", ev=>{
 });
 
 function deleteBlock(id){
-  const list = currentBlocks();
-  const idx = list.findIndex(b=>b.id===id);
-  if(idx>-1) list.splice(idx,1);
+  const zs = zoneState();
+  zs.blocks = zs.blocks.filter(b=>b.id!==id);
   selectedId = null;
   renderCanvas();
 }
 
 /* =========================================================
-   7. 우측 - 선택 블록 편집 패널
+   8. 우측 - 선택 블록 편집 패널
 ========================================================= */
 function renderEditPanel(){
   const panel = document.getElementById("editPanel");
-  const b = currentBlocks().find(x=>x.id===selectedId);
+  const zs = zoneState();
+  const b = zs.blocks.find(x=>x.id===selectedId);
   if(!b){
-    panel.innerHTML = `<div class="text-xs text-slate-400 bg-slate-50 rounded-lg px-3 py-3">캔버스에서 블록을 클릭하면<br>이름 변경 · 크기 조절 · 삭제를 할 수 있어요.</div>`;
+    panel.innerHTML = selectedBlank
+      ? `<div class="text-xs text-indigo-500 bg-indigo-50 rounded-lg px-3 py-3">빈 칸이 선택되었습니다.<br>왼쪽 팔레트에서 공간을 클릭하면 이 칸에 배치돼요.</div>`
+      : `<div class="text-xs text-slate-400 bg-slate-50 rounded-lg px-3 py-3">캔버스에서 블록이나 빈 칸을 클릭해 보세요.<br>이름 변경 · 폭(면적) 조정 · 삭제 · 병합을 할 수 있어요.</div>`;
     return;
   }
   const catOptions = Object.entries(CATEGORY_META).map(([k,m])=>
@@ -781,53 +816,52 @@ function renderEditPanel(){
       <label class="block text-[11px] font-bold text-slate-500">카테고리
         <select id="editCategory" class="mt-1 w-full text-xs border border-slate-200 rounded-lg px-2 py-1.5">${catOptions}</select>
       </label>
-      <div class="flex gap-2">
-        <label class="flex-1 text-[11px] font-bold text-slate-500">가로(칸)
-          <input id="editW" type="number" min="1" max="12" value="${b.w}" class="mt-1 w-full text-xs border border-slate-200 rounded-lg px-2 py-1.5">
-        </label>
-        <label class="flex-1 text-[11px] font-bold text-slate-500">세로(칸)
-          <input id="editH" type="number" min="1" max="12" value="${b.h}" class="mt-1 w-full text-xs border border-slate-200 rounded-lg px-2 py-1.5">
-        </label>
-      </div>
-      <div class="flex items-center gap-4 pt-1">
-        <label class="flex items-center gap-1.5 text-[11px] font-bold text-slate-500">
-          <input id="editFixed" type="checkbox" ${b.fixed?"checked":""}> 이동 금지(고정)
-        </label>
-      </div>
+      <label class="block text-[11px] font-bold text-slate-500">폭(가로 칸수) · ${b.w*UNIT_AREA}㎡
+        <input id="editW" type="number" min="1" max="${zs.cols}" value="${b.w}" ${b.fixed?"disabled":""} class="mt-1 w-full text-xs border border-slate-200 rounded-lg px-2 py-1.5 disabled:bg-slate-100">
+      </label>
+      <label class="flex items-center gap-1.5 text-[11px] font-bold text-slate-500 pt-1">
+        <input id="editFixed" type="checkbox" ${b.fixed?"checked":""}> 이동/면적조정 금지(고정)
+      </label>
       <button id="editDelete" class="w-full mt-1 text-xs font-bold bg-rose-50 text-rose-500 rounded-lg py-1.5 hover:bg-rose-100">이 블록 삭제</button>
+      <p class="text-[10.5px] text-slate-400 leading-snug pt-1">같은 층(행)에서 캔버스 위 오른쪽 손잡이를 드래그하면 옆 칸 벽을 허물며 면적을 넓히거나, 반대로 줄여 벽을 다시 세울 수 있어요. 옆 블록을 Shift+클릭하면 바로 병합됩니다.</p>
     </div>
   `;
 
   document.getElementById("editName").oninput = e=>{ b.name = e.target.value; renderCanvas(); };
   document.getElementById("editCategory").onchange = e=>{ b.category = e.target.value; renderCanvas(); };
-  document.getElementById("editW").onchange = e=>{ b.w = Math.max(1, parseInt(e.target.value)||1); renderCanvas(); };
-  document.getElementById("editH").onchange = e=>{ b.h = Math.max(1, parseInt(e.target.value)||1); renderCanvas(); };
+  document.getElementById("editW").onchange = e=>{
+    let w = Math.max(1, parseInt(e.target.value)||1);
+    while(w > 1 && !rectFree(zs, b.row, b.col, w, b.h, b.id)) w--;
+    b.w = w;
+    renderCanvas();
+  };
   document.getElementById("editFixed").onchange = e=>{ b.fixed = e.target.checked; renderCanvas(); };
   document.getElementById("editDelete").onclick = ()=> deleteBlock(b.id);
 }
 
 /* =========================================================
-   8. 우측 - 리스트 / 통계
+   9. 우측 - 리스트 / 통계
 ========================================================= */
-function renderList(list){
+function renderList(zs){
   const ul = document.getElementById("listBox");
   ul.innerHTML = "";
   let area = 0;
-  list.slice().sort((a,b)=> a.row-b.row || a.col-b.col).forEach(b=>{
-    area += b.w*b.h*UNIT_AREA;
+  zs.blocks.slice().sort((a,b)=> a.row-b.row || a.col-b.col).forEach(b=>{
+    area += b.w*UNIT_AREA;
     const li = document.createElement("li");
     li.className = "flex items-center justify-between gap-2 px-2 py-1.5 rounded-lg hover:bg-slate-50 cursor-pointer" + (b.id===selectedId?" bg-slate-100":"");
+    const floorTxt = currentZone === "D" ? "" : `${zs.floors[b.row]}층 · `;
     li.innerHTML = `
       <span class="flex items-center gap-1.5 truncate">
         <span class="swatch" style="background:${CATEGORY_META[b.category].color};border-color:${CATEGORY_META[b.category].border}"></span>
-        <span class="truncate">${b.name}${b.fixed?" (고정)":""}</span>
+        <span class="truncate">${floorTxt}${b.name}${b.fixed?" (고정)":""}</span>
       </span>
-      <span class="text-slate-400 flex-shrink-0">${b.w*b.h*UNIT_AREA}㎡</span>
+      <span class="text-slate-400 flex-shrink-0">${b.w*UNIT_AREA}㎡</span>
     `;
-    li.onclick = ()=>{ selectedId = b.id; renderCanvas(); };
+    li.onclick = ()=>{ selectedId = b.id; selectedBlank = null; renderCanvas(); };
     ul.appendChild(li);
   });
-  document.getElementById("statCount").textContent = list.length;
+  document.getElementById("statCount").textContent = zs.blocks.length;
   document.getElementById("statArea").textContent = area.toLocaleString();
 }
 
@@ -835,43 +869,41 @@ function renderGlobalStat(){
   let totalBlocks = 0, totalArea = 0;
   const perZone = [];
   Object.keys(ZONE_META).forEach(z=>{
-    let zc = 0, za = 0;
-    ZONE_META[z].floors.forEach(f=>{
-      state[z][f].forEach(b=>{ zc++; za += b.w*b.h*UNIT_AREA; });
-    });
-    totalBlocks += zc; totalArea += za;
-    perZone.push(`${ZONE_META[z].name} ${zc}개 · ${za.toLocaleString()}㎡`);
+    const zs = state[z];
+    let za = 0;
+    zs.blocks.forEach(b=> za += b.w*UNIT_AREA);
+    totalBlocks += zs.blocks.length; totalArea += za;
+    perZone.push(`${ZONE_META[z].name} ${zs.blocks.length}개 · ${za.toLocaleString()}㎡`);
   });
   document.getElementById("globalStat").innerHTML =
     `총 ${totalBlocks}개 공간 · ${totalArea.toLocaleString()}㎡<br><span class="text-slate-400 font-normal">${perZone.join(" · ")}</span>`;
 }
 
 /* =========================================================
-   9. 상단 유틸리티 - 실제배치 불러오기 / 초기화 / 저장 / 이미지
+   10. 상단 유틸리티 - 실제배치 재설정 / 초기화 / 저장 / 이미지
 ========================================================= */
 document.getElementById("btnLoadReal").onclick = ()=>{
-  const data = (ROOM_DATA[currentZone] && ROOM_DATA[currentZone][currentFloor]) || [];
-  if(data.length===0){ alert("이 층에 대한 참고 배치 데이터가 없습니다."); return; }
-  if(currentBlocks().length>0){
-    if(!confirm("현재 층의 배치를 지우고 2026학년도 교사 배치도 기준 참고 배치를 불러올까요?")) return;
+  if(zoneState().blocks.length>0){
+    if(!confirm(`${ZONE_META[currentZone].name}의 현재 배치를 지우고 2026학년도 교사 배치도 기준으로 되돌릴까요?`)) return;
   }
-  state[currentZone][currentFloor] = autoLayout(data);
-  selectedId = null;
+  state[currentZone] = buildZoneGrid(currentZone);
+  selectedId = null; selectedBlank = null;
   renderCanvas();
 };
 
-document.getElementById("btnResetFloor").onclick = ()=>{
-  if(!confirm(`${ZONE_META[currentZone].name} ${currentFloor}층 배치를 모두 지울까요?`)) return;
-  state[currentZone][currentFloor] = [];
-  selectedId = null;
+document.getElementById("btnResetZone").onclick = ()=>{
+  if(!confirm(`${ZONE_META[currentZone].name}의 모든 배치(고정 구역 포함)를 비우고 빈 그리드로 시작할까요?`)) return;
+  state[currentZone] = emptyZoneGrid(currentZone);
+  selectedId = null; selectedBlank = null;
   renderCanvas();
 };
 
 document.getElementById("btnResetAll").onclick = ()=>{
-  if(!confirm("전체 동/층의 모든 배치를 초기화할까요? 이 작업은 되돌릴 수 없습니다.")) return;
-  state = emptyState();
-  selectedId = null;
-  renderCanvas();
+  if(!confirm("전체 동의 모든 배치를 초기화할까요? 이 작업은 되돌릴 수 없습니다.")) return;
+  state = initialState();
+  Object.keys(state).forEach(z=> state[z] = emptyZoneGrid(z));
+  selectedId = null; selectedBlank = null;
+  renderAll();
 };
 
 document.getElementById("btnSaveJson").onclick = ()=>{
@@ -895,18 +927,18 @@ document.getElementById("fileInput").onchange = ev=>{
       const parsed = JSON.parse(e.target.result);
       const loaded = parsed.state || parsed;
       Object.keys(ZONE_META).forEach(z=>{
-        if(!loaded[z]) loaded[z] = {};
-        ZONE_META[z].floors.forEach(f=>{ if(!loaded[z][f]) loaded[z][f] = []; });
+        if(!loaded[z]) loaded[z] = emptyZoneGrid(z);
+        if(!loaded[z].floors) loaded[z].floors = buildZoneGrid(z).floors;
       });
       state = loaded;
       let maxId = 0;
-      Object.values(state).forEach(zone=>Object.values(zone).forEach(list=>list.forEach(b=>{
+      Object.values(state).forEach(zs=> (zs.blocks||[]).forEach(b=>{
         const n = parseInt(String(b.id).replace(/\D/g,""))||0;
         if(n>maxId) maxId = n;
-      })));
+      }));
       idSeq = maxId + 1;
-      selectedId = null;
-      renderCanvas();
+      selectedId = null; selectedBlank = null;
+      renderAll();
       alert("배치 데이터를 불러왔습니다.");
     }catch(err){
       alert("JSON 파일을 읽는 중 오류가 발생했습니다: " + err.message);
@@ -917,31 +949,25 @@ document.getElementById("fileInput").onchange = ev=>{
 };
 
 document.getElementById("btnExportImg").onclick = ()=>{
-  html2canvas(canvasEl, {backgroundColor:"#fafbfd", scale:2}).then(canvas=>{
+  html2canvas(canvasWrapEl, {backgroundColor:"#fafbfd", scale:2}).then(canvas=>{
     const a = document.createElement("a");
-    a.download = `${ZONE_META[currentZone].name}_${currentFloor}층_배치도.png`;
+    a.download = `${ZONE_META[currentZone].name}_전체배치도.png`;
     a.href = canvas.toDataURL("image/png");
     a.click();
   });
 };
 
 /* =========================================================
-   10. 초기 실행
+   11. 초기 실행
 ========================================================= */
 function renderAll(){
   renderZoneTabs();
-  renderFloorTabs();
   renderPalette();
   renderCanvas();
 }
 
-// 최초 접속 시 2026학년도 교사 배치도 데이터를 모든 동·층에 반영해
-// '현재 배치도' 상태 그대로 시작하도록 함 (건물 전체 배치도에도 즉시 반영됨)
-Object.keys(ROOM_DATA).forEach(z=>{
-  Object.keys(ROOM_DATA[z]).forEach(f=>{
-    state[z][Number(f)] = autoLayout(ROOM_DATA[z][f]);
-  });
-});
+// 최초 접속 시 2026학년도 교사 배치도 데이터를 모든 동에 반영해
+// '현재 배치도' 상태 그대로, 동 전체 구조가 한 화면에 보이도록 시작함
 renderAll();
 
 })();
