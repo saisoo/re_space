@@ -32,7 +32,10 @@
     padding: 2px 5px;
     cursor: grab;
     user-select: none;
-    touch-action: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+    /* 터치로 밀면 화면 스크롤, 꾹 누른 뒤 끌면 이동(JS에서 처리) */
+    touch-action: pan-x pan-y;
     transition: box-shadow .12s ease, opacity .12s ease;
     overflow: hidden;
   }
@@ -93,35 +96,53 @@
   #toast { transition: opacity .2s ease, transform .2s ease; }
   #toast.hiddenToast { opacity:0; transform: translate(-50%, 8px); pointer-events:none; }
 
+  /* 층 라벨은 가로 스크롤(모바일) 시에도 왼쪽에 고정 */
+  #rowLabels { position: sticky; left: 0; z-index: 45; background: #fafbfd; }
+
   /* 모바일 브라우저 주소창으로 인한 100vh 오차 보정 */
-  body { height: 100dvh !important; }
+  body { height: 100dvh !important; touch-action: manipulation; }
+
+  /* ===== 모바일(좁은 화면) ===== */
+  @media (max-width: 639px) {
+    /* iOS 사파리는 글자 크기 16px 미만 입력칸을 누르면 화면을 확대해버리므로 16px로 맞춤 */
+    input, select, textarea { font-size: 16px !important; }
+    #searchInput { padding-top: 3px; padding-bottom: 3px; }
+    #toolGroup.mobileOpen { display: flex; flex-wrap: wrap; width: 100%; padding: 2px 0 4px; }
+    #toolGroup.mobileOpen .sep { display: none; }
+    #toolGroup.mobileOpen button { padding: 6px 9px; font-size: 12px; }
+    #canvasWrap { overflow: auto; -webkit-overflow-scrolling: touch; }
+    .room-block .name { font-size: 10.5px; }
+    .resizeHandle { width: 20px; }
+  }
 </style>
 </head>
 <body class="bg-slate-100 text-slate-800 h-screen overflow-hidden flex flex-col">
 
 <!-- ===== 상단 유틸리티 바 ===== -->
-<header class="bg-white border-b border-slate-200 px-3 py-1 flex flex-nowrap items-center gap-2 shadow-sm flex-shrink-0 overflow-x-auto scrollbar-thin" style="-webkit-overflow-scrolling:touch;">
+<header class="bg-white border-b border-slate-200 px-2 sm:px-3 py-1 flex flex-wrap sm:flex-nowrap items-center gap-x-2 gap-y-1 shadow-sm flex-shrink-0 sm:overflow-x-auto scrollbar-thin" style="-webkit-overflow-scrolling:touch;">
   <div class="flex items-center gap-2 flex-shrink-0">
     <div class="w-6 h-6 rounded-md bg-slate-900 text-white flex items-center justify-center font-extrabold text-[10px] flex-shrink-0">덕</div>
     <h1 class="hidden 2xl:block text-[11px] font-extrabold text-slate-900 leading-tight flex-shrink-0">덕영고 공간재구조화 인터랙티브 시뮬레이터</h1>
   </div>
-  <div id="zoneTabs" class="flex gap-1 bg-slate-100 p-0.5 rounded-lg flex-shrink-0"></div>
-  <div class="flex items-center gap-1 flex-shrink-0">
-    <input id="searchInput" type="text" placeholder="이름·호실 검색 (전체 동)" title="Enter: 다음 결과 · Shift+Enter: 이전 결과 · Esc: 지우기" class="text-[11px] border border-slate-200 rounded-full px-3 py-1 w-36">
-    <span id="searchCount" class="text-[10px] font-bold text-slate-400 min-w-[28px]"></span>
+  <div id="zoneTabs" class="flex gap-1 bg-slate-100 p-0.5 rounded-lg flex-1 min-w-0 overflow-x-auto sm:flex-none sm:flex-shrink-0 scrollbar-thin"></div>
+  <!-- 모바일에서는 검색 · 실행취소 · 메뉴가 두 번째 줄에 한 줄로 배치됨 -->
+  <div class="flex items-center gap-1 w-full sm:w-auto flex-shrink-0">
+    <input id="searchInput" type="search" placeholder="이름·호실 검색 (전체 동)" title="Enter: 다음 결과 · Shift+Enter: 이전 결과 · Esc: 지우기" class="text-[11px] border border-slate-200 rounded-full px-3 py-1 flex-1 min-w-0 sm:flex-none sm:w-36">
+    <span id="searchCount" class="text-[10px] font-bold text-slate-400 min-w-[28px] flex-shrink-0"></span>
+    <button id="btnUndo" title="실행취소 (Ctrl+Z)" class="flex-shrink-0 px-2 py-1 rounded-md text-[11px] font-bold bg-slate-100 text-slate-500 hover:bg-slate-200 disabled:opacity-35 disabled:hover:bg-slate-100"><span class="sm:hidden text-sm leading-none">↶</span><span class="hidden sm:inline">실행취소</span></button>
+    <button id="btnRedo" title="다시실행 (Ctrl+Y)" class="flex-shrink-0 px-2 py-1 rounded-md text-[11px] font-bold bg-slate-100 text-slate-500 hover:bg-slate-200 disabled:opacity-35 disabled:hover:bg-slate-100"><span class="sm:hidden text-sm leading-none">↷</span><span class="hidden sm:inline">다시실행</span></button>
+    <button id="btnMobileMenu" class="sm:hidden flex-shrink-0 px-2.5 py-1 rounded-md text-[11px] font-bold bg-slate-900 text-white">메뉴 ▾</button>
   </div>
-  <div class="flex items-center gap-1 flex-shrink-0">
-    <button id="btnUndo" title="실행취소 (Ctrl+Z)" class="flex-shrink-0 px-2 py-1 rounded-md text-[11px] font-bold bg-slate-100 text-slate-500 hover:bg-slate-200 disabled:opacity-35 disabled:hover:bg-slate-100">실행취소</button>
-    <button id="btnRedo" title="다시실행 (Ctrl+Y)" class="flex-shrink-0 px-2 py-1 rounded-md text-[11px] font-bold bg-slate-100 text-slate-500 hover:bg-slate-200 disabled:opacity-35 disabled:hover:bg-slate-100">다시실행</button>
-    <div class="w-px h-4 bg-slate-200 mx-0.5 flex-shrink-0"></div>
+  <div id="toolGroup" class="hidden sm:flex items-center gap-1 flex-shrink-0">
+    <div class="sep w-px h-4 bg-slate-200 mx-0.5 flex-shrink-0"></div>
     <button id="btnManage" class="flex-shrink-0 px-2 py-1 rounded-md text-[11px] font-bold bg-slate-100 text-slate-600 hover:bg-slate-200">배치 리스트 · 도구</button>
     <button id="btnDiffToggle" title="현재 배치를 2026 실제 배치와 비교" class="flex-shrink-0 px-2 py-1 rounded-md text-[11px] font-bold bg-slate-100 text-slate-600 hover:bg-slate-200">변경 칸 표시: 끔</button>
     <button id="btnMultiSelectMode" title="터치 기기에서 Ctrl 없이 여러 칸 선택" class="flex-shrink-0 px-2 py-1 rounded-md text-[11px] font-bold bg-slate-100 text-slate-600 hover:bg-slate-200">다중 선택: 끔</button>
-    <div class="w-px h-4 bg-slate-200 mx-0.5 flex-shrink-0"></div>
+    <div class="sep w-px h-4 bg-slate-200 mx-0.5 flex-shrink-0"></div>
     <button id="btnLoadReal" class="flex-shrink-0 px-2 py-1 rounded-md text-[11px] font-bold bg-indigo-600 text-white hover:bg-indigo-700">실제 배치로 재설정</button>
     <button id="btnResetZone" class="flex-shrink-0 px-2 py-1 rounded-md text-[11px] font-bold bg-slate-100 text-slate-600 hover:bg-slate-200">현재 동 비우기</button>
     <button id="btnResetAll" class="flex-shrink-0 px-2 py-1 rounded-md text-[11px] font-bold bg-rose-50 text-rose-500 hover:bg-rose-100">전체 초기화</button>
-    <div class="w-px h-4 bg-slate-200 mx-0.5 flex-shrink-0"></div>
+    <div class="sep w-px h-4 bg-slate-200 mx-0.5 flex-shrink-0"></div>
     <button id="btnSaveJson" class="flex-shrink-0 px-2 py-1 rounded-md text-[11px] font-bold bg-slate-100 text-slate-600 hover:bg-slate-200">JSON 저장</button>
     <button id="btnLoadJson" class="flex-shrink-0 px-2 py-1 rounded-md text-[11px] font-bold bg-slate-100 text-slate-600 hover:bg-slate-200">JSON 불러오기</button>
     <input type="file" id="fileInput" accept=".json" class="hidden">
@@ -137,14 +158,15 @@
   <section id="canvasSection" class="flex-1 min-h-0 min-w-0 bg-white rounded-2xl border border-slate-200 shadow-sm p-2 flex flex-col">
     <div class="flex items-center justify-between mb-1 px-1 flex-wrap gap-1.5 flex-shrink-0">
       <div class="flex items-center gap-2 flex-shrink-0">
-        <h2 id="canvasTitle" class="text-sm font-extrabold text-slate-700"></h2>
+        <h2 id="canvasTitle" class="text-[13px] sm:text-sm font-extrabold text-slate-700"></h2>
         <div class="flex items-center gap-1 bg-slate-50 rounded-lg px-1.5 py-0.5" data-html2canvas-ignore="true">
-          <span class="text-[10px] text-slate-400">여유 칸</span>
-          <button id="padColsMinus" title="오른쪽 여유 칸 줄이기(화면 커짐)" class="w-5 h-5 rounded bg-white border border-slate-200 hover:bg-slate-100 text-slate-600 font-bold text-xs leading-none disabled:opacity-35">−</button>
-          <span id="padColsValue" class="text-[11px] font-bold text-slate-600 w-4 text-center">0</span>
-          <button id="padColsPlus" title="오른쪽 여유 칸 늘리기(화면 작아짐)" class="w-5 h-5 rounded bg-white border border-slate-200 hover:bg-slate-100 text-slate-600 font-bold text-xs leading-none disabled:opacity-35">+</button>
+          <span class="text-[10px] text-slate-400">가로 칸</span>
+          <button id="padColsMinus" title="오른쪽 빈 열 줄이기(칸이 커짐)" class="w-5 h-5 rounded bg-white border border-slate-200 hover:bg-slate-100 text-slate-600 font-bold text-xs leading-none disabled:opacity-35">−</button>
+          <span id="padColsValue" class="text-[11px] font-bold text-slate-600 min-w-[16px] text-center">0</span>
+          <button id="padColsPlus" title="오른쪽 빈 열 늘리기(칸이 작아짐)" class="w-5 h-5 rounded bg-white border border-slate-200 hover:bg-slate-100 text-slate-600 font-bold text-xs leading-none disabled:opacity-35">+</button>
         </div>
       </div>
+      <p class="text-[10px] text-slate-400 sm:hidden" data-html2canvas-ignore="true">탭: 선택·편집 · 꾹 끌기: 이동 · 빈 곳 밀기: 화면 이동</p>
       <p class="text-[10px] text-slate-400 hidden lg:block" data-html2canvas-ignore="true">클릭: 선택 · 드래그: 이동(같은 크기 칸 위로 놓으면 맞교환) · 방향키: 한 칸 이동 · 오른쪽 손잡이: 면적 조정 · Shift+클릭: 병합 · Ctrl+클릭: 다중선택 · Ctrl+A: 전체 선택 · Ctrl+D: 복제 · Delete: 삭제 · 가로 1칸≈20㎡</p>
     </div>
     <div id="canvasWrap" class="relative rounded-xl border border-slate-200 flex-1 min-h-0">
@@ -156,7 +178,7 @@
   </section>
 
   <!-- 하단 팔레트 스트립: 높이 고정 — 여기서 늘어나거나 줄어들어도 건물 배치도 화면 크기는 바뀌지 않음 -->
-  <div class="flex-shrink-0 bg-white rounded-2xl border border-slate-200 shadow-sm px-3 py-1 flex flex-col" style="height:84px;">
+  <div class="flex-shrink-0 bg-white rounded-2xl border border-slate-200 shadow-sm px-3 py-1 flex flex-col h-[124px] sm:h-[84px]">
     <div class="flex items-center justify-between flex-shrink-0 mb-0.5">
       <span class="text-[10px] font-extrabold text-slate-500">공간 팔레트</span>
       <span class="text-[9px] text-slate-400 hidden sm:block">클릭하거나 캔버스 빈 칸으로 드래그해서 배치 · 버튼에 마우스를 올리면 카테고리가 보여요</span>
@@ -177,7 +199,7 @@
 </div>
 
 <!-- ===== 배치 리스트 · 도구 팝업 ===== -->
-<div id="managePopup" class="fixed inset-x-3 top-[92px] sm:inset-x-auto sm:top-[104px] sm:right-4 sm:w-[320px] max-h-[65vh] sm:max-h-[75vh] overflow-y-auto scrollbar-thin bg-white rounded-2xl border border-slate-200 shadow-lg p-3 z-[60] hidden space-y-4">
+<div id="managePopup" class="fixed inset-x-3 bottom-3 sm:bottom-auto sm:inset-x-auto sm:top-[104px] sm:right-4 sm:w-[320px] max-h-[70vh] sm:max-h-[75vh] overflow-y-auto scrollbar-thin bg-white rounded-2xl border border-slate-200 shadow-lg p-3 z-[60] hidden space-y-4">
   <div class="flex items-center justify-between mb-1">
     <h3 class="text-sm font-extrabold text-slate-700">배치 리스트 · 도구</h3>
     <button id="managePopupClose" class="w-6 h-6 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-600 text-sm font-bold flex-shrink-0">✕</button>
@@ -238,7 +260,10 @@ let CELL_H = 44;
 const ASPECT_RATIO = 108/44;   // 실제 교실 단면 비율(가로 길게)을 화면 크기와 무관하게 유지
 const MAX_CELL_W = 190;
 const GRID_PAD_COLS = 1;   // 실제 배치 오른쪽에 여유 칸을 조금만 둬서 새 공간을 추가할 수 있게 함 (과도한 빈칸 방지)
-const MAX_COLS = 40;       // 여유 칸 늘리기 상한
+const MAX_COLS = 40;
+const MOBILE_MIN_CELL_W = 78;  // 휴대폰에서 칸 최소 폭(px) — 넘치면 가로 스크롤
+const MOBILE_MIN_CELL_H = 40;
+const MOBILE_MAX_CELL_H = 64;       // 여유 칸 늘리기 상한
 const UNIT_AREA = 20;      // 가로 1칸 ≈ 20㎡ (참고용)
 const STORAGE_KEY = "deokyoung_space_sim_v1";
 
@@ -864,7 +889,7 @@ function renderPalette(){
   const catOptions = Object.entries(CATEGORY_META).map(([k,m])=>
     `<option value="${k}" ${k==="common"?"selected":""}>${m.label}</option>`).join("");
   customWrap.innerHTML = `
-    <input id="customName" type="text" placeholder="신규 공간 이름" class="w-24 text-[10.5px] border border-slate-300 rounded-full px-2 py-0.5">
+    <input id="customName" type="text" placeholder="신규 공간 이름" class="w-32 sm:w-24 text-[10.5px] border border-slate-300 rounded-full px-2 py-0.5">
     <select id="customCategory" title="신규 공간 카테고리" class="w-20 text-[10.5px] border border-slate-300 rounded-full px-1 py-0.5">${catOptions}</select>
     <button id="customAddBtn" class="text-[10.5px] font-bold bg-teal-500 text-white px-2 py-0.5 rounded-full hover:bg-teal-600 flex-shrink-0">추가</button>`;
   paletteRoot.appendChild(customWrap);
@@ -952,7 +977,7 @@ function renderRowLabels(zs){
   for(let r=0; r<zs.rows; r++){
     const lab = document.createElement("div");
     lab.className = "rowLabel";
-    lab.style.width = "46px";
+    lab.style.width = labelW() + "px";
     lab.style.height = CELL_H + "px";
     const floorNum = zs.floors[r];
     lab.textContent = floorLabelText(currentZone, floorNum);
@@ -960,10 +985,20 @@ function renderRowLabels(zs){
   }
 }
 
+function isNarrow(){ return window.innerWidth < 640; }
+function labelW(){ return isNarrow() ? 38 : 46; }
+
 function computeCellSize(zs){
-  const labelWidth = 46 + 8; // 층 라벨 폭 + 여백
+  const labelWidth = labelW() + 8; // 층 라벨 폭 + 여백
   const availW = Math.max(80, (canvasWrapEl.clientWidth || 800) - labelWidth);
   const availH = Math.max(40, (canvasWrapEl.clientHeight || 500) - 8);
+  if(isNarrow()){
+    // 휴대폰 세로 화면: 가로에 다 맞추면 칸이 너무 작아지므로 최소 폭을 두고 가로 스크롤,
+    // 대신 남는 세로 공간을 써서 칸 높이를 키움 (글자가 읽히고 손가락으로 누르기 쉬운 크기)
+    CELL_W = Math.floor(Math.max(availW / zs.cols, MOBILE_MIN_CELL_W));
+    CELL_H = Math.floor(Math.max(Math.min(availH / zs.rows, MOBILE_MAX_CELL_H), MOBILE_MIN_CELL_H));
+    return;
+  }
   const wFromWidth = availW / zs.cols;
   const wFromHeight = (availH / zs.rows) * ASPECT_RATIO; // 세로 여유를 가로 폭 기준으로 환산
   // 스크롤이 생기지 않도록, 두 제약(가로/세로) 중 더 작은 쪽과 최대치 중에서도 가장 작은 값을 사용
@@ -974,13 +1009,21 @@ function computeCellSize(zs){
   CELL_H = Math.floor(CELL_W / ASPECT_RATIO);
 }
 
+// 가로 스크롤되는 모바일 배치도에서 해당 공간이 화면 밖이면 보이도록 스크롤
+function scrollBlockIntoView(id){
+  const el = canvasEl.querySelector(`[data-id="${id}"]`);
+  if(!el) return;
+  const left = el.offsetLeft, right = left + el.offsetWidth;
+  const viewL = canvasWrapEl.scrollLeft, viewR = viewL + canvasWrapEl.clientWidth - labelW() - 8;
+  if(left < viewL || right > viewR) canvasWrapEl.scrollTo({ left: Math.max(0, left - 40), behavior:"smooth" });
+}
+
 function blockMatchesQuery(b, q){
   return b.name.toLowerCase().includes(q) || (b.num||"").toLowerCase().includes(q) || (b.note||"").toLowerCase().includes(q);
 }
 
 function renderPadCols(zs){
-  const pad = zs.cols - usedCols(zs);
-  document.getElementById("padColsValue").textContent = pad;
+  document.getElementById("padColsValue").textContent = zs.cols;
   document.getElementById("padColsMinus").disabled = zs.cols <= Math.max(1, usedCols(zs));
   document.getElementById("padColsPlus").disabled = zs.cols >= MAX_COLS;
 }
@@ -1081,30 +1124,70 @@ function startDrag(ev, block){
     handleShiftMerge(block);
     return;
   }
-  ev.preventDefault();
+  // 터치: 그냥 밀면 화면 스크롤, 잠깐 꾹 누르면(약 0.3초) 끌어서 이동 — 마우스는 바로 드래그
+  const isTouch = ev.pointerType === "touch";
+  if(!isTouch) ev.preventDefault();
   const zs = zoneState();
   const startX = ev.clientX, startY = ev.clientY;
   const startLeft = block.col*CELL_W, startTop = block.row*CELL_H;
+  // 블록 안에서 잡은 지점 (캔버스가 스크롤돼도 위치가 어긋나지 않도록 캔버스 기준 좌표로 계산)
+  const r0 = canvasEl.getBoundingClientRect();
+  const grabX = startX - r0.left - startLeft, grabY = startY - r0.top - startTop;
   let moved = false;
+  let armed = !isTouch;
+  let cancelled = false;
   const el = canvasEl.querySelector(`[data-id="${block.id}"]`);
   let ghost = null;
+  let pressTimer = null;
+  let lastE = ev;
 
+  function blockScroll(te){ if(armed && te.cancelable) te.preventDefault(); }
+  if(isTouch){
+    document.addEventListener("touchmove", blockScroll, {passive:false});
+    pressTimer = setTimeout(()=>{
+      armed = true;
+      el.classList.add("dragging");
+      if(navigator.vibrate) navigator.vibrate(15);
+    }, 280);
+  }
+
+  function pos(e){
+    const r = canvasEl.getBoundingClientRect();
+    return { x: e.clientX - r.left - grabX, y: e.clientY - r.top - grabY };
+  }
   function snapped(e){
-    const dx = e.clientX - startX, dy = e.clientY - startY;
-    let newCol = Math.round((startLeft+dx)/CELL_W);
-    let newRow = Math.round((startTop+dy)/CELL_H);
+    const p = pos(e);
+    let newCol = Math.round(p.x/CELL_W);
+    let newRow = Math.round(p.y/CELL_H);
     newCol = Math.max(0, Math.min(newCol, zs.cols - block.w));
     newRow = Math.max(0, Math.min(newRow, zs.rows - block.h));
     return { newRow, newCol };
   }
+  // 화면 가장자리 근처로 끌면 배치도를 자동으로 스크롤
+  function edgeScroll(e){
+    const wr = canvasWrapEl.getBoundingClientRect();
+    const m = 36, step = 14;
+    if(e.clientX > wr.right - m) canvasWrapEl.scrollLeft += step;
+    else if(e.clientX < wr.left + m + 46) canvasWrapEl.scrollLeft -= step;
+    if(e.clientY > wr.bottom - m) canvasWrapEl.scrollTop += step;
+    else if(e.clientY < wr.top + m) canvasWrapEl.scrollTop -= step;
+  }
 
   function onMove(e){
+    lastE = e;
     const dx = e.clientX - startX, dy = e.clientY - startY;
+    if(!armed){
+      // 꾹 누르기 전에 손가락이 움직이면 스크롤로 간주하고 드래그 취소
+      if(Math.abs(dx) > 8 || Math.abs(dy) > 8){ cancelled = true; cleanup(); }
+      return;
+    }
     if(Math.abs(dx) > 4 || Math.abs(dy) > 4) moved = true;
     if(!moved || block.fixed) return;
     el.classList.add("dragging");
-    el.style.left = (startLeft + dx + 2) + "px";
-    el.style.top = (startTop + dy + 2) + "px";
+    edgeScroll(e);
+    const p = pos(e);
+    el.style.left = (p.x + 2) + "px";
+    el.style.top = (p.y + 2) + "px";
 
     // 놓일 위치 미리보기 (초록: 이동 가능, 파랑: 맞교환, 빨강: 불가)
     if(!ghost){ ghost = document.createElement("div"); canvasEl.appendChild(ghost); }
@@ -1116,12 +1199,25 @@ function startDrag(ev, block){
     ghost.style.width = (block.w*CELL_W-6) + "px";
     ghost.style.height = (block.h*CELL_H-6) + "px";
   }
-  function onUp(e){
+  function cleanup(){
+    clearTimeout(pressTimer);
     document.removeEventListener("pointermove", onMove);
     document.removeEventListener("pointerup", onUp);
-    document.removeEventListener("pointercancel", onUp);
+    document.removeEventListener("pointercancel", onCancel);
+    document.removeEventListener("touchmove", blockScroll);
+    if(cancelled && el) el.classList.remove("dragging");
+  }
+  function onCancel(){
+    // 브라우저가 스크롤을 시작하면 pointercancel이 옴 — 선택하지 않고 정리만
+    cancelled = true;
+    cleanup();
+    if(moved) renderCanvas();
+  }
+  function onUp(e){
+    cleanup();
+    if(cancelled) return;
     if(moved && !block.fixed){
-      const { newRow, newCol } = snapped(e);
+      const { newRow, newCol } = snapped(e || lastE);
       const res = evaluateDrop(zs, block, newRow, newCol);
       if(res.kind === "ok"){
         pushUndo();
@@ -1143,7 +1239,7 @@ function startDrag(ev, block){
   }
   document.addEventListener("pointermove", onMove);
   document.addEventListener("pointerup", onUp);
-  document.addEventListener("pointercancel", onUp);
+  document.addEventListener("pointercancel", onCancel);
 }
 
 function toggleMultiSelect(id){
@@ -1564,7 +1660,12 @@ function renderList(zs){
       </span>
       <span class="text-slate-400 flex-shrink-0">${b.w*UNIT_AREA}㎡</span>
     `;
-    li.onclick = ()=>{ selectedId = b.id; selectedBlank = null; multiSelect = []; renderCanvas(); };
+    li.onclick = ()=>{
+      selectedId = b.id; selectedBlank = null; multiSelect = [];
+      if(isNarrow()) managePopupEl.classList.add("hidden");
+      renderCanvas();
+      scrollBlockIntoView(b.id);
+    };
     ul.appendChild(li);
   });
   if(zs.blocks.length === 0) ul.innerHTML = `<li class="text-[11px] text-slate-400 px-2">배치된 공간이 없습니다.</li>`;
@@ -1720,6 +1821,9 @@ document.getElementById("btnExportImg").onclick = ()=>{
   if(typeof html2canvas !== "function"){ alert("이미지 저장 라이브러리를 불러오지 못했습니다. 인터넷 연결을 확인해 주세요."); return; }
   const sectionEl = document.getElementById("canvasSection");
   const wrapH = canvasWrapEl.offsetHeight;
+  // 모바일에서 가로 스크롤로 가려진 부분까지 모두 저장되도록 전체 폭 계산
+  const fullW = rowLabelsEl.offsetWidth + canvasEl.offsetWidth + 34;
+  const wideW = Math.max(sectionEl.offsetWidth, fullW);
   const btn = document.getElementById("btnExportImg");
   btn.disabled = true; btn.textContent = "저장 중…";
   // 선택 표시가 이미지에 남지 않도록 잠시 해제
@@ -1728,15 +1832,19 @@ document.getElementById("btnExportImg").onclick = ()=>{
   renderCanvas({skipEditPanel:true});
   html2canvas(sectionEl, {
     backgroundColor:"#ffffff", scale:2,
+    windowWidth: Math.max(window.innerWidth, wideW + 40),
     onclone: doc=>{
       const sec = doc.getElementById("canvasSection");
       sec.style.height = "auto"; sec.style.flex = "none";
+      sec.style.width = wideW + "px";
       const wrap = doc.getElementById("canvasWrap");
+      wrap.style.overflow = "visible";
+      wrap.scrollLeft = 0;
       // 배치도 아래 남는 빈 여백 없이 그리드 높이에 맞춰 저장
       wrap.style.height = Math.min(wrapH, canvasEl.offsetHeight + 8) + "px"; wrap.style.flex = "none";
       // html2canvas는 좁은 line-height에서 글자 위아래가 잘리므로 저장용 사본에서만 보정, 손잡이는 숨김
       const fix = doc.createElement("style");
-      fix.textContent = ".room-block .name,.room-block .num,.room-block .badge{line-height:1.35 !important;} .resizeHandle{display:none !important;}";
+      fix.textContent = ".room-block .name,.room-block .num,.room-block .badge{line-height:1.35 !important;overflow:visible !important;text-overflow:clip !important;} .resizeHandle{display:none !important;} .fixedBlock .num{display:none !important;}";
       doc.head.appendChild(fix);
       const title = doc.getElementById("canvasTitle");
       title.textContent += ` · ${new Date().toLocaleDateString("ko-KR")}`;
@@ -1756,6 +1864,22 @@ document.getElementById("btnExportImg").onclick = ()=>{
     renderCanvas();
   });
 };
+
+/* ---- 모바일 메뉴: 좁은 화면에서는 도구 버튼들을 접어두고 '메뉴'로 펼침 ---- */
+const toolGroupEl = document.getElementById("toolGroup");
+const mobileMenuBtn = document.getElementById("btnMobileMenu");
+function setMobileMenu(open){
+  toolGroupEl.classList.toggle("mobileOpen", open);
+  mobileMenuBtn.textContent = open ? "닫기 ▴" : "메뉴 ▾";
+}
+mobileMenuBtn.onclick = ()=> setMobileMenu(!toolGroupEl.classList.contains("mobileOpen"));
+// 메뉴 안의 버튼을 누르면 메뉴는 접힘 (토글 버튼은 상태를 바로 보이도록 유지)
+toolGroupEl.addEventListener("click", ev=>{
+  const btn = ev.target.closest("button");
+  if(!btn || !isNarrow()) return;
+  if(btn.id === "btnDiffToggle" || btn.id === "btnMultiSelectMode") return;
+  setMobileMenu(false);
+});
 
 /* ---- 배치 리스트 · 도구 팝업 ---- */
 const managePopupEl = document.getElementById("managePopup");
@@ -1811,6 +1935,7 @@ function focusSearchHit(){
   selectedId = h.id; selectedBlank = null; multiSelect = [];
   searchCountEl.textContent = `${searchIdx+1}/${searchHits.length}`;
   renderCanvas();
+  scrollBlockIntoView(h.id);
 }
 searchInputEl.oninput = e=>{
   searchQuery = e.target.value.trim().toLowerCase();
