@@ -34,8 +34,9 @@
     user-select: none;
     -webkit-user-select: none;
     -webkit-touch-callout: none;
-    /* 터치로 밀면 화면 스크롤, 꾹 누른 뒤 끌면 이동(JS에서 처리) */
-    touch-action: pan-x pan-y;
+    /* 브라우저 기본 스크롤을 끄고, 밀기(화면 이동)·꾹 눌러 끌기(공간 이동)를 모두 JS에서 직접 처리
+       — iOS 사파리는 기본 스크롤이 켜져 있으면 꾹 누른 뒤 끌어도 터치를 가로채 버림 */
+    touch-action: none;
     transition: box-shadow .12s ease, opacity .12s ease;
     overflow: hidden;
   }
@@ -47,6 +48,7 @@
   .room-block.searchDim { opacity: .35; }
   .room-block .noteDot { position:absolute; top:3px; right:3px; width:6px; height:6px; border-radius:50%; background:#0f172a; opacity:.55; }
   .room-block.dragging { cursor: grabbing; z-index: 40; opacity: .9; }
+  .room-block.lifted { transform: scale(1.06); box-shadow: 0 8px 18px rgba(15,23,42,.3); z-index: 40; }
   .room-block.fixedBlock { cursor: not-allowed; }
   .room-block .name { max-width:100%; font-weight: 700; font-size: 11px; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .room-block .num { max-width:100%; font-size: 9px; opacity: .6; line-height: 1.1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -1124,9 +1126,9 @@ function startDrag(ev, block){
     handleShiftMerge(block);
     return;
   }
-  // 터치: 그냥 밀면 화면 스크롤, 잠깐 꾹 누르면(약 0.3초) 끌어서 이동 — 마우스는 바로 드래그
+  // 터치: 그냥 밀면 배치도 화면 이동, 잠깐 꾹 누르면(약 0.3초) 공간이 들려서 끌어 이동 — 마우스는 바로 드래그
   const isTouch = ev.pointerType === "touch";
-  if(!isTouch) ev.preventDefault();
+  ev.preventDefault();
   const zs = zoneState();
   const startX = ev.clientX, startY = ev.clientY;
   const startLeft = block.col*CELL_W, startTop = block.row*CELL_H;
@@ -1136,17 +1138,18 @@ function startDrag(ev, block){
   let moved = false;
   let armed = !isTouch;
   let cancelled = false;
+  let panning = false;
   const el = canvasEl.querySelector(`[data-id="${block.id}"]`);
   let ghost = null;
   let pressTimer = null;
   let lastE = ev;
+  const startScrollL = canvasWrapEl.scrollLeft, startScrollT = canvasWrapEl.scrollTop;
 
-  function blockScroll(te){ if(armed && te.cancelable) te.preventDefault(); }
   if(isTouch){
-    document.addEventListener("touchmove", blockScroll, {passive:false});
     pressTimer = setTimeout(()=>{
+      if(panning || cancelled) return;
       armed = true;
-      el.classList.add("dragging");
+      if(!block.fixed) el.classList.add("lifted");
       if(navigator.vibrate) navigator.vibrate(15);
     }, 280);
   }
@@ -1177,8 +1180,12 @@ function startDrag(ev, block){
     lastE = e;
     const dx = e.clientX - startX, dy = e.clientY - startY;
     if(!armed){
-      // 꾹 누르기 전에 손가락이 움직이면 스크롤로 간주하고 드래그 취소
-      if(Math.abs(dx) > 8 || Math.abs(dy) > 8){ cancelled = true; cleanup(); }
+      // 꾹 누르기 전에 손가락이 움직이면 '밀기'로 보고 배치도 화면을 직접 스크롤
+      if(!panning && (Math.abs(dx) > 8 || Math.abs(dy) > 8)){ panning = true; clearTimeout(pressTimer); }
+      if(panning){
+        canvasWrapEl.scrollLeft = startScrollL - dx;
+        canvasWrapEl.scrollTop = startScrollT - dy;
+      }
       return;
     }
     if(Math.abs(dx) > 4 || Math.abs(dy) > 4) moved = true;
@@ -1204,18 +1211,17 @@ function startDrag(ev, block){
     document.removeEventListener("pointermove", onMove);
     document.removeEventListener("pointerup", onUp);
     document.removeEventListener("pointercancel", onCancel);
-    document.removeEventListener("touchmove", blockScroll);
-    if(cancelled && el) el.classList.remove("dragging");
   }
   function onCancel(){
-    // 브라우저가 스크롤을 시작하면 pointercancel이 옴 — 선택하지 않고 정리만
+    // 전화 수신 등으로 터치가 끊긴 경우 — 아무것도 바꾸지 않고 원래대로 다시 그림
     cancelled = true;
     cleanup();
-    if(moved) renderCanvas();
+    renderCanvas();
   }
   function onUp(e){
     cleanup();
     if(cancelled) return;
+    if(panning) return; // 화면을 밀어 이동한 경우에는 선택하지 않음
     if(moved && !block.fixed){
       const { newRow, newCol } = snapped(e || lastE);
       const res = evaluateDrop(zs, block, newRow, newCol);
@@ -1334,6 +1340,8 @@ function splitBlock(id){
 }
 
 /* ---- 드래그 앤 드롭 (팔레트 -> 빈 칸, 데스크톱 마우스 전용 — 터치에서는 클릭으로 배치) ---- */
+// 꾹 누를 때 휴대폰의 길게 누르기 메뉴(복사/공유 등)가 뜨지 않도록
+canvasEl.addEventListener("contextmenu", ev=>{ if(ev.target.closest(".room-block")) ev.preventDefault(); });
 canvasEl.addEventListener("dragover", ev=> ev.preventDefault());
 canvasEl.addEventListener("drop", ev=>{
   ev.preventDefault();
