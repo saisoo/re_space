@@ -248,7 +248,7 @@
 </div>
 
 <!-- ===== 알림 토스트 ===== -->
-<div id="toast" class="hiddenToast fixed left-1/2 bottom-24 -translate-x-1/2 z-[70] bg-slate-900 text-white text-xs font-semibold pl-3 pr-2 py-2 rounded-lg shadow-lg flex items-center gap-2 max-w-[92vw]"><span id="toastMsg"></span><button id="toastUndo" class="hidden flex-shrink-0 px-2 py-1 rounded-md bg-amber-400 text-slate-900 font-extrabold">되돌리기</button></div>
+<div id="toast" class="hiddenToast fixed left-1/2 top-[104px] sm:top-auto sm:bottom-24 -translate-x-1/2 z-[70] bg-slate-900 text-white text-xs font-semibold pl-3 pr-2 py-2 rounded-lg shadow-lg flex items-center gap-2 max-w-[92vw]"><span id="toastMsg"></span><button id="toastUndo" class="hidden flex-shrink-0 px-2 py-1 rounded-md bg-amber-400 text-slate-900 font-extrabold">되돌리기</button></div>
 
 <script>
 (function(){
@@ -944,9 +944,11 @@ function placeNewBlock(category, item, target){
     row:target.row, col:target.col, w, h:1, fixed:!!item.fixed,
   };
   zs.blocks.push(nb);
-  selectedId = nb.id;
+  // 배치 후 편집 팝업을 바로 열지 않음 (팝업이 팔레트를 가려 연달아 배치하기 어려움) — 편집은 공간을 탭하면 열림
+  selectedId = null;
   selectedBlank = null; multiSelect = [];
   renderCanvas();
+  toastUndo(`'${nb.name}'을(를) ${floorLabelText(currentZone, zs.floors[nb.row])}에 배치했어요.`);
 }
 
 function addBlockFromPalette(category, item){
@@ -1560,18 +1562,14 @@ function renderEditPanel(){
     return;
   }
 
-  if(!b && !selectedBlank){
+  // 빈 칸만 선택된 경우에는 안내 팝업을 띄우지 않음 — 팝업이 하단 팔레트를 가려서
+  // 정작 넣을 공간을 고를 수 없었음. 선택된 빈 칸은 캔버스에서 테두리로 표시됨.
+  if(!b){
     popup.classList.add("hidden");
     panel.innerHTML = "";
     return;
   }
   popup.classList.remove("hidden");
-
-  if(!b){
-    titleEl.textContent = `빈 칸 · ${floorLabelText(currentZone, zs.floors[selectedBlank.row])} ${selectedBlank.col+1}번째 칸`;
-    panel.innerHTML = `<div class="text-xs text-indigo-500 bg-indigo-50 rounded-xl px-3 py-3">빈 칸이 선택되었습니다.<br>하단 팔레트에서 공간을 클릭하면 이 칸에 배치돼요.</div>`;
-    return;
-  }
   titleEl.textContent = "선택된 공간 편집";
   const catOptions = Object.entries(CATEGORY_META).map(([k,m])=>
     `<option value="${k}" ${k===b.category?"selected":""}>${m.label}</option>`).join("");
