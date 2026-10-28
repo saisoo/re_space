@@ -50,9 +50,9 @@
   .room-block.lifted { transform: scale(1.06); box-shadow: 0 8px 18px rgba(15,23,42,.3); z-index: 40; }
   .room-block.fixedBlock { cursor: not-allowed; }
   .room-block .name { max-width:100%; font-weight: 700; font-size: var(--nameFs, 11px); line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  /* 칸이 높을 때는 긴 이름을 두 줄로 */
-  #canvas.tallCells .room-block .name { white-space: normal; overflow-wrap: anywhere; text-align: center;
-    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+  /* 4글자 이상 이름은 두 줄로 나눠 표시 (splitName) — 줄마다 넘치면 … 처리 */
+  .room-block .name { text-align: center; }
+  .room-block .name .ln { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .room-block .num { max-width:100%; font-size: 9px; opacity: .6; line-height: 1.1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .room-block .badge { flex-shrink:0; font-size:8px; font-weight:800; letter-spacing:.02em; line-height:1.3; padding:0 4px; margin-bottom:1px; border-radius:4px; background:rgba(15,23,42,.14); color:#334155; }
 
@@ -1402,6 +1402,31 @@ function scrollBlockIntoView(id){
   if(left < viewL || right > viewR) canvasWrapEl.scrollTo({ left: Math.max(0, left - 40), behavior:"smooth" });
 }
 
+/* ---- 이름 두 줄 나누기 ----
+   4글자 이상이면 두 줄로: 반으로 나누되 윗줄이 같거나 짧게 (5자 2/3, 6자 3/3, 7자 3/4 …).
+   가운데 근처(±2자)에 띄어쓰기·'('·'/'가 있으면 거기서 나눔 (예: 화장실/(남), 북카페//도서관) */
+function splitName(name){
+  const ch = Array.from(String(name || "").trim());
+  if(ch.length < 4) return null;
+  const mid = Math.floor(ch.length / 2);
+  let best = null;
+  ch.forEach((c, i)=>{
+    let cut = null;
+    if(c === " ") cut = i;            // 띄어쓰기에서 (공백은 버림)
+    else if(c === "(") cut = i;       // 괄호 앞에서
+    else if(c === "/") cut = i + 1;   // 슬래시 뒤에서
+    if(cut === null || cut <= 0 || cut >= ch.length) return;
+    if(Math.abs(cut - mid) <= 2 && (best === null || Math.abs(cut - mid) < Math.abs(best - mid))) best = cut;
+  });
+  const cut = best === null ? mid : best;
+  const a = ch.slice(0, cut).join("").trim(), b = ch.slice(cut).join("").trim();
+  return a && b ? [a, b] : null;
+}
+function nameHtml(name){
+  const parts = splitName(name);
+  return parts ? `<span class="ln">${esc(parts[0])}</span><span class="ln">${esc(parts[1])}</span>` : esc(name);
+}
+
 function blockMatchesQuery(b, q){
   return b.name.toLowerCase().includes(q) || (b.num||"").toLowerCase().includes(q) || (b.note||"").toLowerCase().includes(q);
 }
@@ -1437,9 +1462,8 @@ function renderCanvas(opts){
   canvasEl.style.width = (zs.cols*CELL_W) + "px";
   canvasEl.style.height = (zs.rows*CELL_H) + "px";
   canvasEl.style.backgroundSize = CELL_W + "px " + CELL_H + "px";
-  // 칸 크기에 맞춰 글자 크기 조절, 칸이 충분히 높으면 이름을 두 줄까지 표시
+  // 칸 크기에 맞춰 글자 크기 조절
   canvasEl.style.setProperty("--nameFs", Math.max(10, Math.min(14, Math.round(Math.min(CELL_W / 7, CELL_H / 4)))) + "px");
-  canvasEl.classList.toggle("tallCells", CELL_H >= 30);
   canvasEl.innerHTML = "";
   renderRowLabels(zs);
   renderPadCols(zs);
@@ -1506,11 +1530,13 @@ function renderCanvas(opts){
     div.title = `${b.name}${b.num?" #"+b.num:""} · ${meta.label} · ${b.w*UNIT_AREA}㎡${b.note?"\n메모: "+b.note:""}`;
 
     // 칸이 낮으면 '고정' 표시와 호실 번호를 생략하고 이름을 우선 (고정 공간은 회색으로 구분됨)
-    const roomy = CELL_H >= 46;
-    const showBadge = b.fixed && CELL_H >= 58;
+    // 이름이 두 줄이면 더 높은 칸에서만 호실 번호·'고정' 표시
+    const twoLine = !!splitName(b.name);
+    const roomy = CELL_H >= (twoLine ? 58 : 46);
+    const showBadge = b.fixed && CELL_H >= (twoLine ? 76 : 58);
     div.innerHTML = `
       ${showBadge?'<span class="badge">고정</span>':''}
-      <div class="name">${esc(b.name)}</div>
+      <div class="name">${nameHtml(b.name)}</div>
       ${(b.num && roomy)?`<div class="num">#${esc(b.num)}</div>`:""}
       ${(b.note && b.note.trim())?'<span class="noteDot"></span>':''}
     `;
