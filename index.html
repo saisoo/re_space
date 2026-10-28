@@ -50,7 +50,7 @@
   .room-block.lifted { transform: scale(1.06); box-shadow: 0 8px 18px rgba(15,23,42,.3); z-index: 40; }
   .room-block.fixedBlock { cursor: not-allowed; }
   .room-block .name { max-width:100%; font-weight: 700; font-size: var(--nameFs, 11px); line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  /* 4글자 이상 이름은 두 줄로 나눠 표시 (splitName) — 줄마다 넘치면 … 처리 */
+  /* 5글자 이상 이름은 두 줄로 나눠 표시 (splitName) — 줄마다 넘치면 … 처리 */
   .room-block .name { text-align: center; }
   .room-block .name .ln { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   /* 반칸 공간: 폭이 좁아 글자를 조금 작게, 글자 단위로 줄바꿈 */
@@ -1406,14 +1406,14 @@ function scrollBlockIntoView(id){
 }
 
 /* ---- 이름 두 줄 나누기 ----
-   4글자 이상이면 두 줄로: 반으로 나누되 윗줄이 같거나 짧게 (5자 2/3, 6자 3/3, 7자 3/4 …).
+   5글자 이상이면 두 줄로: 반으로 나누되 윗줄이 같거나 짧게 (5자 2/3, 6자 3/3, 7자 3/4 …), 4글자까지는 한 줄.
    가운데 근처(±2자)에 띄어쓰기·'('·'/'·영문↔한글 경계가 있으면 거기서 나눔
    (예: 화장실/(남), 북카페//도서관, SW/실습실, 그래픽/SW부) */
 function isLatin(c){ return /[A-Za-z]/.test(c); }
 function isHangul(c){ return /[가-힣]/.test(c); }
 function splitName(name){
   const ch = Array.from(String(name || "").trim());
-  if(ch.length < 4) return null;
+  if(ch.length < 5) return null; // 4글자까지는 한 줄 (경영회계, 덕영광장)
   // '…실습실'은 항상 '실습실' 앞에서 나눔 (보건 / 실습실1, 디자인 / 실습실1, SW / 실습실1)
   const sIdx = ch.join("").indexOf("실습실");
   if(sIdx >= 2) return [ch.slice(0, sIdx).join("").trim(), ch.slice(sIdx).join("").trim()];
