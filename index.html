@@ -387,15 +387,41 @@ const ZONE_META = {
 };
 
 const CATEGORY_META = {
-  fixed:     { short:"고정", label:"고정 구역(계단/화장실/현관 등)", color:"#d9dde3", border:"#9aa1ac" },
-  design:    { short:"디자인실습", label:"디자인/미디어 실습실",  color:"#fbcfe8", border:"#ec4899" },
-  swit:      { short:"SW실습", label:"SW/IT/회계 실습실",     color:"#bae6fd", border:"#0ea5e9" },
-  special:   { short:"특별실", label:"특별교육/외국어실",     color:"#ddd6fe", border:"#8b5cf6" },
-  classroom: { short:"스마트교실", label:"스마트교실(일반교실)",  color:"#fde68a", border:"#f59e0b" },
-  admin:     { short:"행정", label:"행정/교무 공간",        color:"#c7d2fe", border:"#6366f1" },
-  health:    { short:"보건", label:"보건/간호 실습실 · 보건실(양호실)",      color:"#bbf7d0", border:"#22c55e" },
-  common:    { short:"공용", label:"공용/휴게/신규 공간",   color:"#99f6e4", border:"#14b8a6" },
+  computer:   { short:"컴퓨터",     label:"컴퓨터",     color:"#bae6fd", border:"#0ea5e9" },
+  health:     { short:"보건",       label:"보건",       color:"#bbf7d0", border:"#22c55e" },
+  design:     { short:"디자인",     label:"디자인",     color:"#fbcfe8", border:"#ec4899" },
+  accounting: { short:"경영회계",   label:"경영회계",   color:"#fed7aa", border:"#f97316" },
+  classroom:  { short:"스마트교실", label:"스마트교실", color:"#fde68a", border:"#f59e0b" },
+  language:   { short:"외국어실",   label:"외국어실",   color:"#ddd6fe", border:"#8b5cf6" },
+  admin:      { short:"교무실",     label:"교무실",     color:"#c7d2fe", border:"#6366f1" },
+  special:    { short:"특별실",     label:"특별실",     color:"#f5d0fe", border:"#c026d3" },
+  library:    { short:"도서관",     label:"도서관",     color:"#d9f99d", border:"#65a30d" },
+  common:     { short:"공용",       label:"공용",       color:"#99f6e4", border:"#14b8a6" },
+  rest:       { short:"휴게공간",   label:"휴게공간",   color:"#fecaca", border:"#ef4444" },
+  // 계단·화장실·현관 등 고정 시설 (공간 구분과 별도로 회색 표시)
+  fixed:      { short:"고정 시설",  label:"고정 시설(계단·화장실 등)", color:"#d9dde3", border:"#9aa1ac" },
 };
+
+/* 예전 카테고리(8개)로 저장된 배치를 새 공간 구분으로 한 번만 옮김 (저장 데이터 v1 → v2) */
+const OLD_CAT_KEYS = ["fixed","design","swit","special","classroom","admin","health","common"]; // v1 공유 링크의 카테고리 번호 순서
+function migrateCat(cat, name){
+  name = name || "";
+  switch(cat){
+    case "swit":    return /회계|세무|전자상거래|사무행정/.test(name) ? "accounting" : "computer";
+    case "special": return /영어|일본어|중국어|외국어/.test(name) ? "language" : "special";
+    case "common":
+      if(/도서관|북카페/.test(name)) return "library";
+      if(/휴게/.test(name)) return "rest";
+      if(/바리스타/.test(name)) return "special";
+      return "common";
+    case "admin":   return /소규모학습실/.test(name) ? "common" : "admin";
+    default:        return cat;
+  }
+}
+function migrateState(st){
+  Object.values(st || {}).forEach(zs=> ((zs && zs.blocks) || []).forEach(b=>{ if(b) b.category = migrateCat(b.category, b.name); }));
+  return st;
+}
 
 // 하단 팔레트 버튼 구성
 // seq:true 인 항목은 비슷한 부류를 하나로 묶은 버튼 — 놓을 때마다 "디자인실1, 디자인실2…"처럼 번호가 자동으로 붙음
@@ -407,14 +433,18 @@ const PALETTE = [
       {name:"엘리베이터", fixed:true},
       {name:"보일러실", fixed:true},
   ]},
-  { key:"classroom", items:[ {name:"스마트교실", seq:true} ]},
-  { key:"design",    items:[ {name:"디자인실습실", seq:true} ]},
-  { key:"swit",      items:[ {name:"SW실습실", seq:true} ]},
-  { key:"special",   items:[ {name:"특별실", seq:true} ]},
-  { key:"admin",     items:[ {name:"행정실", seq:true} ]},
+  { key:"computer",   items:[ {name:"SW실습실", seq:true} ]},
   // 보건실습실(간호·요양 실습)과 학생 치료용 보건실(양호실)을 구분 — 양호실은 보통 하나라 번호 없이
-  { key:"health",    items:[ {name:"보건실습실", seq:true}, {name:"보건실(양호실)"} ]},
-  { key:"common",    items:[ {name:"공용실", seq:true}, {name:"공실(빈 공간)"} ]},
+  { key:"health",     items:[ {name:"보건실습실", seq:true}, {name:"보건실(양호실)"} ]},
+  { key:"design",     items:[ {name:"디자인실습실", seq:true} ]},
+  { key:"accounting", items:[ {name:"경영회계실습실", seq:true} ]},
+  { key:"classroom",  items:[ {name:"스마트교실", seq:true} ]},
+  { key:"language",   items:[ {name:"외국어실", seq:true} ]},
+  { key:"admin",      items:[ {name:"교무실", seq:true} ]},
+  { key:"special",    items:[ {name:"특별실", seq:true} ]},
+  { key:"library",    items:[ {name:"도서관"} ]},
+  { key:"common",     items:[ {name:"공용실", seq:true}, {name:"공실(빈 공간)"} ]},
+  { key:"rest",       items:[ {name:"휴게실", seq:true} ]},
 ];
 
 /* =========================================================
@@ -441,48 +471,48 @@ const ROOM_DATA = {
       R("음악실","166","special"),
       R("다목적회의실(산학협력실)","167","common"),
       R("비전룸","168","common"),
-      R("북카페/도서관","169","common",{size:{w:2}}),
-      R("바리스타실","170","common"),
+      R("북카페/도서관","169","library",{size:{w:2}}),
+      R("바리스타실","170","special"),
       R("현관","","fixed",{fixed:true}),
     ],
     5: [
       R("학습1실","171","common"),
       R("학습2실","172","common"),
-      R("휴게 및 전시실","173","common",{size:{w:2}}),
-      R("일본어실","174","special"),
-      R("중국어실","174-2","special"),
+      R("휴게 및 전시실","173","rest",{size:{w:2}}),
+      R("일본어실","174","language"),
+      R("중국어실","174-2","language"),
       R("화장실(남)","175","fixed",{fixed:true}),
     ],
     4: [
       R("기자재실","196","fixed",{fixed:true}),
       R("계단","","fixed",{fixed:true}),
       R("소프트웨어부","193","admin"),
-      R("소규모학습실","193","admin"),
-      R("데이터베이스1실","194","swit"),
-      R("데이터베이스2실","195","swit"),
-      R("정보보호관리실","197","swit"),
-      R("빅데이터분석실","198","swit"),
+      R("소규모학습실","193","common"),
+      R("데이터베이스1실","194","computer"),
+      R("데이터베이스2실","195","computer"),
+      R("정보보호관리실","197","computer"),
+      R("빅데이터분석실","198","computer"),
       R("정보통신실","159","fixed",{fixed:true}),
       R("화장실(여)","","fixed",{fixed:true}),
       R("계단","","fixed",{fixed:true}),
     ],
     3: [
       R("경영회계부","188","admin"),
-      R("소규모학습실","188","admin"),
-      R("회계실무1실","189","swit"),
-      R("회계실무2실","190","swit"),
-      R("세무실무실","191","swit"),
-      R("전자상거래실무실","192","swit"),
+      R("소규모학습실","188","common"),
+      R("회계실무1실","189","accounting"),
+      R("회계실무2실","190","accounting"),
+      R("세무실무실","191","accounting"),
+      R("전자상거래실무실","192","accounting"),
       R("계단","","fixed",{fixed:true}),
       R("화장실(남)","","fixed",{fixed:true}),
       R("계단","","fixed",{fixed:true}),
     ],
     2: [
       R("교육정보부","183","admin"),
-      R("소규모학습실","183","admin"),
-      R("컴퓨터보안1실","184","swit"),
-      R("컴퓨터보안2실","185","swit"),
-      R("사무행정실","186","swit"),
+      R("소규모학습실","183","common"),
+      R("컴퓨터보안1실","184","computer"),
+      R("컴퓨터보안2실","185","computer"),
+      R("사무행정실","186","accounting"),
       R("총무실","187","admin"),
       R("계단","","fixed",{fixed:true}),
       R("화장실(여)","","fixed",{fixed:true}),
@@ -490,7 +520,7 @@ const ROOM_DATA = {
     ],
     1: [
       R("그래픽SW부","177","admin"),
-      R("소규모학습실","177","admin"),
+      R("소규모학습실","177","common"),
       R("시각디자인실","179","design"),
       R("캐릭터제작실","180","design"),
       R("멀티미디어실","181","design"),
@@ -584,7 +614,7 @@ const ROOM_DATA = {
       R("과학실","223","special"), R("화장실(남)","","fixed",{fixed:true}),
     ],
     1: [
-      R("영어실","211","special"), R("방과후교실","212","common"),
+      R("영어실","211","language"), R("방과후교실","212","common"),
       R("학생자치실","213","common"), R("방송실","214","fixed",{fixed:true}),
       R("1-5","215","classroom"), R("2-5","216","classroom"),
       R("2-1","217","classroom"), R("2-2","218","classroom"),
@@ -620,7 +650,7 @@ const ROOM_DATA = {
       R("문서고 및 창고","152","fixed",{fixed:true}),
       R("보건실(양호실)","153","health"),
       R("보건교무실","154","admin"),
-      R("소규모학습실(보건)","154","admin"),
+      R("소규모학습실(보건)","154","common"),
       R("화장실(여)","","fixed",{fixed:true}), R("화장실(남)","","fixed",{fixed:true}),
     ],
     "-1": [
@@ -852,7 +882,7 @@ function scheduleSave(){
 function saveLocal(){
   const statusEl = document.getElementById("saveStatus");
   try{
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ v:1, state, scenarios, currentZone, customPalette, cellZoom }));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ v:2, state, scenarios, currentZone, customPalette, cellZoom }));
     const t = new Date();
     statusEl.textContent = `자동 저장됨 ${String(t.getHours()).padStart(2,"0")}:${String(t.getMinutes()).padStart(2,"0")}`;
   }catch(err){
@@ -865,11 +895,12 @@ function loadLocal(){
     if(!raw) return false;
     const parsed = JSON.parse(raw);
     if(!parsed || !parsed.state) return false;
-    state = normalizeState(parsed.state);
+    const legacy = (parsed.v || 1) < 2; // 예전 카테고리로 저장된 데이터
+    state = normalizeState(legacy ? migrateState(parsed.state) : parsed.state);
     scenarios = {};
-    Object.entries(parsed.scenarios || {}).forEach(([k,v])=> scenarios[k] = normalizeState(v));
+    Object.entries(parsed.scenarios || {}).forEach(([k,v])=> scenarios[k] = normalizeState(legacy ? migrateState(v) : v));
     if(parsed.currentZone && ZONE_META[parsed.currentZone]) currentZone = parsed.currentZone;
-    customPalette = normalizeCustomPalette(parsed.customPalette);
+    customPalette = normalizeCustomPalette(legacy ? (parsed.customPalette || []).map(c=> c && Object.assign({}, c, { cat: migrateCat(c.cat, c.name) })) : parsed.customPalette);
     if(typeof parsed.cellZoom === "number" && parsed.cellZoom >= 0.5 && parsed.cellZoom <= 2.5) cellZoom = parsed.cellZoom;
     syncIdSeq();
     return true;
@@ -2346,7 +2377,7 @@ document.getElementById("btnRedo").onclick = ()=>{ if(redoStack.length){ redo();
 updateUndoRedoButtons();
 
 document.getElementById("btnSaveJson").onclick = ()=>{
-  const payload = { savedAt: new Date().toISOString(), state, scenarios, customPalette };
+  const payload = { v: 2, savedAt: new Date().toISOString(), state, scenarios, customPalette };
   const blob = new Blob([JSON.stringify(payload, null, 2)], {type:"application/json"});
   downloadBlob(blob, `덕영고_공간배치_${dateStamp()}.json`);
 };
@@ -2364,11 +2395,12 @@ document.getElementById("fileInput").onchange = ev=>{
         throw new Error("덕영고 배치 데이터 형식이 아닙니다.");
       }
       pushUndo();
-      state = normalizeState(loaded);
+      const legacy = (parsed.v || 1) < 2;
+      state = normalizeState(legacy ? migrateState(loaded) : loaded);
       if(parsed.scenarios && typeof parsed.scenarios === "object"){
-        Object.entries(parsed.scenarios).forEach(([k,v])=> scenarios[k] = normalizeState(v));
+        Object.entries(parsed.scenarios).forEach(([k,v])=> scenarios[k] = normalizeState(legacy ? migrateState(v) : v));
       }
-      normalizeCustomPalette(parsed.customPalette).forEach(c=>{
+      normalizeCustomPalette((parsed.customPalette || []).map(c=> legacy && c ? Object.assign({}, c, { cat: migrateCat(c.cat, c.name) }) : c)).forEach(c=>{
         if(!customPalette.some(x=> x.cat === c.cat && x.name === c.name)) customPalette.push(c);
       });
       syncIdSeq();
@@ -2663,13 +2695,15 @@ function packState(st){
   });
   return out;
 }
-function unpackState(packed){
+function unpackState(packed, legacy){
+  const keys = legacy ? OLD_CAT_KEYS : CAT_KEYS;
   const st = {};
   Object.keys(ZONE_META).forEach(z=>{
     const e = packed && packed[z];
     if(!Array.isArray(e)) return;
     st[z] = { cols: e[0], blocks: (e[1] || []).map(a=> ({
-      id:"", row:a[0], col:a[1], w:a[2], name:a[3], category: CAT_KEYS[a[4]] || "common",
+      id:"", row:a[0], col:a[1], w:a[2], name:a[3],
+      category: legacy ? migrateCat(keys[a[4]] || "common", a[3]) : (keys[a[4]] || "common"),
       fixed: !!a[5], num: a[6] || "", note: a[7] || "",
     })) };
   });
@@ -2710,7 +2744,7 @@ async function shareLayout(st, title){
   let url;
   try{
     // 받는 사람 팔레트에도 '내 공간' 버튼이 생기도록 함께 담음
-    const payload = { t: title || "", z: packState(st) };
+    const payload = { v: 2, t: title || "", z: packState(st) };
     if(customPalette.length) payload.p = customPalette.map(c=> [Math.max(0, CAT_KEYS.indexOf(c.cat)), c.name]);
     url = location.href.split("#")[0] + "#share=" + await encodeShare(payload);
   }catch(err){ alert("공유 링크를 만들지 못했어요: " + err.message); return; }
@@ -2737,14 +2771,15 @@ async function openSharedFromHash(){
   history.replaceState(null, "", location.pathname + location.search);
   try{
     const obj = await decodeShare(m[1]);
-    const shared = unpackState(obj.z);
+    const legacyLink = !obj.v; // 카테고리 변경 전에 만든 링크
+    const shared = unpackState(obj.z, legacyLink);
     const title = (obj.t || "").trim() || "공유받은 배치";
     const hadWork = Object.values(state).some(zs=> zs.blocks.length > 0);
     if(hadWork) scenarios[`내 이전 배치 (${nowStamp()})`] = JSON.parse(JSON.stringify(state));
     scenarios[`${title} (공유받음 ${nowStamp()})`] = JSON.parse(JSON.stringify(shared));
     let addedPal = 0;
     (Array.isArray(obj.p) ? obj.p : []).forEach(a=>{
-      const c = normalizeCustomPalette([{ cat: CAT_KEYS[a[0]], name: a[1] }])[0];
+      const c = normalizeCustomPalette([{ cat: legacyLink ? migrateCat(OLD_CAT_KEYS[a[0]], a[1]) : CAT_KEYS[a[0]], name: a[1] }])[0];
       if(c && !customPalette.some(x=> x.cat === c.cat && x.name === c.name)){ customPalette.push(c); addedPal++; }
     });
     pushUndo();
