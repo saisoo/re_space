@@ -394,6 +394,7 @@ const CATEGORY_META = {
   classroom:  { short:"스마트교실", label:"스마트교실", color:"#fde68a", border:"#f59e0b" },
   language:   { short:"외국어실",   label:"외국어실",   color:"#ddd6fe", border:"#8b5cf6" },
   admin:      { short:"교무실",     label:"교무실",     color:"#c7d2fe", border:"#6366f1" },
+  facility:   { short:"행정/시설",  label:"행정/시설",  color:"#e9d5c0", border:"#a8743f" },
   special:    { short:"특별실",     label:"특별실",     color:"#f5d0fe", border:"#c026d3" },
   library:    { short:"도서관",     label:"도서관",     color:"#d9f99d", border:"#65a30d" },
   common:     { short:"공용",       label:"공용",       color:"#99f6e4", border:"#14b8a6" },
@@ -418,9 +419,29 @@ function migrateCat(cat, name){
     default:        return cat;
   }
 }
-function migrateState(st){
-  Object.values(st || {}).forEach(zs=> ((zs && zs.blocks) || []).forEach(b=>{ if(b) b.category = migrateCat(b.category, b.name); }));
+// v2 → v3: '행정/시설' 구분 추가 — 행정실류와 계단·화장실이 아닌 시설실을 옮김
+const FACILITY_ADMIN_RE = /^(행정실|법인실|숙직실|인쇄실)$/;
+const FACILITY_ROOM_RE = /기자재|정보통신|방송실|문서고|창고|보일러|기계실/;
+function migrateCatV3(cat, name){
+  name = name || "";
+  if(cat === "admin" && FACILITY_ADMIN_RE.test(name)) return "facility";
+  if(cat === "fixed" && FACILITY_ROOM_RE.test(name)) return "facility";
+  return cat;
+}
+const DATA_VERSION = 3;
+// fromVersion 으로 저장된 카테고리를 현재 구분으로 변환
+function upgradeCat(cat, name, fromVersion){
+  if(fromVersion < 2) cat = migrateCat(cat, name);
+  if(fromVersion < 3) cat = migrateCatV3(cat, name);
+  return cat;
+}
+function migrateState(st, fromVersion){
+  if(fromVersion >= DATA_VERSION) return st;
+  Object.values(st || {}).forEach(zs=> ((zs && zs.blocks) || []).forEach(b=>{ if(b) b.category = upgradeCat(b.category, b.name, fromVersion); }));
   return st;
+}
+function migratePalette(list, fromVersion){
+  return (list || []).map(c=> c && fromVersion < DATA_VERSION ? Object.assign({}, c, { cat: upgradeCat(c.cat, c.name, fromVersion) }) : c);
 }
 
 // 하단 팔레트 버튼 구성
@@ -431,7 +452,6 @@ const PALETTE = [
       {name:"계단", fixed:true},
       {name:"화장실", fixed:true},
       {name:"엘리베이터", fixed:true},
-      {name:"보일러실", fixed:true},
   ]},
   { key:"computer",   items:[ {name:"SW실습실", seq:true} ]},
   // 보건실습실(간호·요양 실습)과 학생 치료용 보건실(양호실)을 구분 — 양호실은 보통 하나라 번호 없이
@@ -441,6 +461,7 @@ const PALETTE = [
   { key:"classroom",  items:[ {name:"스마트교실", seq:true} ]},
   { key:"language",   items:[ {name:"외국어실", seq:true} ]},
   { key:"admin",      items:[ {name:"교무실", seq:true} ]},
+  { key:"facility",   items:[ {name:"행정실", seq:true}, {name:"보일러실", fixed:true} ]},
   { key:"special",    items:[ {name:"특별실", seq:true} ]},
   { key:"library",    items:[ {name:"도서관"} ]},
   { key:"common",     items:[ {name:"공용실", seq:true}, {name:"공실(빈 공간)"} ]},
@@ -484,7 +505,7 @@ const ROOM_DATA = {
       R("화장실(남)","175","fixed",{fixed:true}),
     ],
     4: [
-      R("기자재실","196","fixed",{fixed:true}),
+      R("기자재실","196","facility",{fixed:true}),
       R("계단","","fixed",{fixed:true}),
       R("소프트웨어부","193","admin"),
       R("소규모학습실","193","common"),
@@ -492,7 +513,7 @@ const ROOM_DATA = {
       R("데이터베이스2실","195","computer"),
       R("정보보호관리실","197","computer"),
       R("빅데이터분석실","198","computer"),
-      R("정보통신실","159","fixed",{fixed:true}),
+      R("정보통신실","159","facility",{fixed:true}),
       R("화장실(여)","","fixed",{fixed:true}),
       R("계단","","fixed",{fixed:true}),
     ],
@@ -530,7 +551,7 @@ const ROOM_DATA = {
     ],
     "-1": [
       R("계단","","fixed",{fixed:true}),
-      R("기계실","","fixed",{fixed:true}),
+      R("기계실","","facility",{fixed:true}),
       R("화장실(남)","","fixed",{fixed:true}),
     ],
   },
@@ -542,12 +563,12 @@ const ROOM_DATA = {
       R("계단","","fixed",{fixed:true}),
     ],
     4: [
-      R("숙직실","118","admin"),
-      R("행정실","119","admin"),
-      R("법인실","120","admin"),
+      R("숙직실","118","facility"),
+      R("행정실","119","facility"),
+      R("법인실","120","facility"),
       R("학부모회의실","123","admin"),
       R("큰 교무실","124","admin",{size:{w:2}}),
-      R("문서고","144","fixed",{fixed:true}),
+      R("문서고","144","facility",{fixed:true}),
     ],
     3: [
       R("계단","","fixed",{fixed:true}),
@@ -575,7 +596,7 @@ const ROOM_DATA = {
       R("현관","","fixed",{fixed:true}),
       R("일시적 관찰실","113","admin"),
       R("성적처리실","114","admin"),
-      R("인쇄실","115","admin"),
+      R("인쇄실","115","facility"),
       R("직업교육부","116","admin"),
       R("교장실","117","admin"),
       R("현관","","fixed",{fixed:true}),
@@ -615,7 +636,7 @@ const ROOM_DATA = {
     ],
     1: [
       R("영어실","211","language"), R("방과후교실","212","common"),
-      R("학생자치실","213","common"), R("방송실","214","fixed",{fixed:true}),
+      R("학생자치실","213","common"), R("방송실","214","facility",{fixed:true}),
       R("1-5","215","classroom"), R("2-5","216","classroom"),
       R("2-1","217","classroom"), R("2-2","218","classroom"),
       R("현관","","fixed",{fixed:true}), R("화장실(여)","","fixed",{fixed:true}), R("화장실(남)","","fixed",{fixed:true}),
@@ -646,8 +667,8 @@ const ROOM_DATA = {
       R("화장실(남,여)","","fixed",{fixed:true}),
     ],
     1: [
-      R("보일러실","151","fixed",{fixed:true}),
-      R("문서고 및 창고","152","fixed",{fixed:true}),
+      R("보일러실","151","facility",{fixed:true}),
+      R("문서고 및 창고","152","facility",{fixed:true}),
       R("보건실(양호실)","153","health"),
       R("보건교무실","154","admin"),
       R("소규모학습실(보건)","154","common"),
@@ -655,7 +676,7 @@ const ROOM_DATA = {
     ],
     "-1": [
       R("계단","","fixed",{fixed:true}),
-      R("보일러실","","fixed",{fixed:true}),
+      R("보일러실","","facility",{fixed:true}),
     ],
   },
   D: {
@@ -882,7 +903,7 @@ function scheduleSave(){
 function saveLocal(){
   const statusEl = document.getElementById("saveStatus");
   try{
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ v:2, state, scenarios, currentZone, customPalette, cellZoom }));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ v:DATA_VERSION, state, scenarios, currentZone, customPalette, cellZoom }));
     const t = new Date();
     statusEl.textContent = `자동 저장됨 ${String(t.getHours()).padStart(2,"0")}:${String(t.getMinutes()).padStart(2,"0")}`;
   }catch(err){
@@ -895,12 +916,12 @@ function loadLocal(){
     if(!raw) return false;
     const parsed = JSON.parse(raw);
     if(!parsed || !parsed.state) return false;
-    const legacy = (parsed.v || 1) < 2; // 예전 카테고리로 저장된 데이터
-    state = normalizeState(legacy ? migrateState(parsed.state) : parsed.state);
+    const ver = parsed.v || 1; // 예전 카테고리로 저장된 데이터는 현재 구분으로 변환
+    state = normalizeState(migrateState(parsed.state, ver));
     scenarios = {};
-    Object.entries(parsed.scenarios || {}).forEach(([k,v])=> scenarios[k] = normalizeState(legacy ? migrateState(v) : v));
+    Object.entries(parsed.scenarios || {}).forEach(([k,v])=> scenarios[k] = normalizeState(migrateState(v, ver)));
     if(parsed.currentZone && ZONE_META[parsed.currentZone]) currentZone = parsed.currentZone;
-    customPalette = normalizeCustomPalette(legacy ? (parsed.customPalette || []).map(c=> c && Object.assign({}, c, { cat: migrateCat(c.cat, c.name) })) : parsed.customPalette);
+    customPalette = normalizeCustomPalette(migratePalette(parsed.customPalette, ver));
     if(typeof parsed.cellZoom === "number" && parsed.cellZoom >= 0.5 && parsed.cellZoom <= 2.5) cellZoom = parsed.cellZoom;
     syncIdSeq();
     return true;
@@ -1127,6 +1148,7 @@ function toggleBlank(r, c){
 }
 function blankSelectHint(){
   if(selectedBlanks.length > 1) toast(`빈 칸 ${selectedBlanks.length}개 선택 · 팔레트에서 공간을 누르면 번호 순서대로 채워요`);
+  else if(multiSelectMode && selectedBlanks.length === 1) toast("빈 칸을 더 누르면 함께 선택돼요.");
 }
 
 // opts.advance: 놓은 뒤 같은 층 오른쪽의 다음 빈 칸을 자동으로 선택 (연달아 배치하기 편하게)
@@ -1439,7 +1461,9 @@ function renderCanvas(opts){
       cell.addEventListener("click", ()=>{
         if(pendingMode){ handleModeTap(r, c, null); return; }
         if(blankPaintHandled){ blankPaintHandled = false; return; } // 마우스는 pointerdown에서 이미 처리
-        toggleBlank(r, c);
+        // 다중 선택이 켜져 있으면 누를 때마다 더하고/빼고, 꺼져 있으면 그 칸 하나만 선택
+        if(multiSelectMode) toggleBlank(r, c);
+        else selectedBlanks = (selectedBlanks.length === 1 && selectedBlanks[0].row === r && selectedBlanks[0].col === c) ? [] : [{row:r, col:c}];
         selectedId = null; multiSelect = [];
         renderCanvas();
         blankSelectHint();
@@ -1889,8 +1913,16 @@ canvasEl.addEventListener("pointerdown", ev=>{
   ev.preventDefault();
   const r = +cell.dataset.r, c = +cell.dataset.c;
   const adding = !selectedBlanks.some(x=> x.row===r && x.col===c);
-  const additive = ev.shiftKey || ev.ctrlKey || ev.metaKey || selectedBlanks.length > 0;
-  if(!additive) selectedBlanks = [];
+  // 마우스: 다중 선택이 켜져 있거나 Ctrl/Shift를 누르면 끌어서 여러 칸, 아니면 한 칸만
+  const multi = multiSelectMode || ev.shiftKey || ev.ctrlKey || ev.metaKey;
+  if(!multi){
+    selectedBlanks = (selectedBlanks.length === 1 && selectedBlanks[0].row === r && selectedBlanks[0].col === c) ? [] : [{row:r, col:c}];
+    selectedId = null; multiSelect = [];
+    blankPaintHandled = true;
+    renderCanvas();
+    setTimeout(()=>{ blankPaintHandled = false; }, 0);
+    return;
+  }
   const apply = (el)=>{
     const rr = +el.dataset.r, cc = +el.dataset.c;
     const has = selectedBlanks.some(x=> x.row===rr && x.col===cc);
@@ -2377,7 +2409,7 @@ document.getElementById("btnRedo").onclick = ()=>{ if(redoStack.length){ redo();
 updateUndoRedoButtons();
 
 document.getElementById("btnSaveJson").onclick = ()=>{
-  const payload = { v: 2, savedAt: new Date().toISOString(), state, scenarios, customPalette };
+  const payload = { v: DATA_VERSION, savedAt: new Date().toISOString(), state, scenarios, customPalette };
   const blob = new Blob([JSON.stringify(payload, null, 2)], {type:"application/json"});
   downloadBlob(blob, `덕영고_공간배치_${dateStamp()}.json`);
 };
@@ -2395,12 +2427,12 @@ document.getElementById("fileInput").onchange = ev=>{
         throw new Error("덕영고 배치 데이터 형식이 아닙니다.");
       }
       pushUndo();
-      const legacy = (parsed.v || 1) < 2;
-      state = normalizeState(legacy ? migrateState(loaded) : loaded);
+      const ver = parsed.v || 1;
+      state = normalizeState(migrateState(loaded, ver));
       if(parsed.scenarios && typeof parsed.scenarios === "object"){
-        Object.entries(parsed.scenarios).forEach(([k,v])=> scenarios[k] = normalizeState(legacy ? migrateState(v) : v));
+        Object.entries(parsed.scenarios).forEach(([k,v])=> scenarios[k] = normalizeState(migrateState(v, ver)));
       }
-      normalizeCustomPalette((parsed.customPalette || []).map(c=> legacy && c ? Object.assign({}, c, { cat: migrateCat(c.cat, c.name) }) : c)).forEach(c=>{
+      normalizeCustomPalette(migratePalette(parsed.customPalette, ver)).forEach(c=>{
         if(!customPalette.some(x=> x.cat === c.cat && x.name === c.name)) customPalette.push(c);
       });
       syncIdSeq();
@@ -2543,7 +2575,9 @@ document.getElementById("btnMultiSelectMode").onclick = ()=>{
   const btn = document.getElementById("btnMultiSelectMode");
   btn.textContent = "다중 선택: " + (multiSelectMode ? "켬" : "끔");
   btn.className = "flex-shrink-0 px-2 py-1 rounded-md text-[11px] font-bold " + (multiSelectMode ? "bg-blue-100 text-blue-700" : "bg-slate-100 text-slate-600 hover:bg-slate-200");
-  if(!multiSelectMode){ multiSelect = []; renderCanvas(); }
+  if(!multiSelectMode){ multiSelect = []; if(selectedBlanks.length > 1) selectedBlanks = []; }
+  else toast("다중 선택: 공간이나 빈 칸을 누를 때마다 선택에 더해져요. 빈 칸 여러 개 → 팔레트를 누르면 번호 순서대로 채워요.");
+  renderCanvas();
 };
 
 /* ---- 검색 (전체 동의 이름/호실번호/메모 — 현재 동 결과부터, Enter로 다음 결과) ---- */
@@ -2680,7 +2714,8 @@ document.getElementById("scenarioName").addEventListener("keydown", ev=>{ if(ev.
 /* =========================================================
    공유 링크: 배치를 압축해 주소(#share=...)에 담음 — 서버 없이 링크만으로 주고받기
 ========================================================= */
-const CAT_KEYS = Object.keys(CATEGORY_META);
+// 공유 링크의 카테고리 번호 — 새 구분은 반드시 맨 뒤에 추가 (이미 보낸 링크의 번호가 바뀌지 않도록)
+const CAT_KEYS = ["computer","health","design","accounting","classroom","language","admin","special","library","common","rest","fixed","facility"];
 // 공유용으로 짧게: [가로칸수, [[층행, 칸, 폭, 이름, 카테고리번호, 고정, 호실, 메모], ...]]
 function packState(st){
   const out = {};
@@ -2695,15 +2730,15 @@ function packState(st){
   });
   return out;
 }
-function unpackState(packed, legacy){
-  const keys = legacy ? OLD_CAT_KEYS : CAT_KEYS;
+function unpackState(packed, ver){
+  const keys = ver < 2 ? OLD_CAT_KEYS : CAT_KEYS;
   const st = {};
   Object.keys(ZONE_META).forEach(z=>{
     const e = packed && packed[z];
     if(!Array.isArray(e)) return;
     st[z] = { cols: e[0], blocks: (e[1] || []).map(a=> ({
       id:"", row:a[0], col:a[1], w:a[2], name:a[3],
-      category: legacy ? migrateCat(keys[a[4]] || "common", a[3]) : (keys[a[4]] || "common"),
+      category: upgradeCat(keys[a[4]] || "common", a[3], ver),
       fixed: !!a[5], num: a[6] || "", note: a[7] || "",
     })) };
   });
@@ -2744,7 +2779,7 @@ async function shareLayout(st, title){
   let url;
   try{
     // 받는 사람 팔레트에도 '내 공간' 버튼이 생기도록 함께 담음
-    const payload = { v: 2, t: title || "", z: packState(st) };
+    const payload = { v: DATA_VERSION, t: title || "", z: packState(st) };
     if(customPalette.length) payload.p = customPalette.map(c=> [Math.max(0, CAT_KEYS.indexOf(c.cat)), c.name]);
     url = location.href.split("#")[0] + "#share=" + await encodeShare(payload);
   }catch(err){ alert("공유 링크를 만들지 못했어요: " + err.message); return; }
@@ -2771,15 +2806,15 @@ async function openSharedFromHash(){
   history.replaceState(null, "", location.pathname + location.search);
   try{
     const obj = await decodeShare(m[1]);
-    const legacyLink = !obj.v; // 카테고리 변경 전에 만든 링크
-    const shared = unpackState(obj.z, legacyLink);
+    const linkVer = obj.v || 1; // 카테고리 변경 전에 만든 링크는 현재 구분으로 변환
+    const shared = unpackState(obj.z, linkVer);
     const title = (obj.t || "").trim() || "공유받은 배치";
     const hadWork = Object.values(state).some(zs=> zs.blocks.length > 0);
     if(hadWork) scenarios[`내 이전 배치 (${nowStamp()})`] = JSON.parse(JSON.stringify(state));
     scenarios[`${title} (공유받음 ${nowStamp()})`] = JSON.parse(JSON.stringify(shared));
     let addedPal = 0;
     (Array.isArray(obj.p) ? obj.p : []).forEach(a=>{
-      const c = normalizeCustomPalette([{ cat: legacyLink ? migrateCat(OLD_CAT_KEYS[a[0]], a[1]) : CAT_KEYS[a[0]], name: a[1] }])[0];
+      const c = normalizeCustomPalette([{ cat: upgradeCat((linkVer < 2 ? OLD_CAT_KEYS : CAT_KEYS)[a[0]], a[1], linkVer), name: a[1] }])[0];
       if(c && !customPalette.some(x=> x.cat === c.cat && x.name === c.name)){ customPalette.push(c); addedPal++; }
     });
     pushUndo();
