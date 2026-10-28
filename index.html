@@ -1410,7 +1410,10 @@ function scrollBlockIntoView(id){
 
 /* ---- 이름 두 줄 나누기 ----
    4글자 이상이면 두 줄로: 반으로 나누되 윗줄이 같거나 짧게 (5자 2/3, 6자 3/3, 7자 3/4 …).
-   가운데 근처(±2자)에 띄어쓰기·'('·'/'가 있으면 거기서 나눔 (예: 화장실/(남), 북카페//도서관) */
+   가운데 근처(±2자)에 띄어쓰기·'('·'/'·영문↔한글 경계가 있으면 거기서 나눔
+   (예: 화장실/(남), 북카페//도서관, SW/실습실, 그래픽/SW부) */
+function isLatin(c){ return /[A-Za-z]/.test(c); }
+function isHangul(c){ return /[가-힣]/.test(c); }
 function splitName(name){
   const ch = Array.from(String(name || "").trim());
   if(ch.length < 4) return null;
@@ -1421,9 +1424,12 @@ function splitName(name){
     if(c === " ") cut = i;            // 띄어쓰기에서 (공백은 버림)
     else if(c === "(") cut = i;       // 괄호 앞에서
     else if(c === "/") cut = i + 1;   // 슬래시 뒤에서
+    else if(i > 0 && isLatin(ch[i-1]) !== isLatin(c) && isHangul(ch[i-1]) !== isHangul(c)
+            && (isLatin(ch[i-1]) || isLatin(c))) cut = i; // 영문과 한글이 바뀌는 곳에서
     if(cut === null || cut <= 0 || cut >= ch.length) return;
     if(Math.abs(cut - mid) <= 2 && (best === null || Math.abs(cut - mid) < Math.abs(best - mid))) best = cut;
   });
+  if(best === null && !ch.some(isHangul)) return null; // 영문만 있는 이름은 단어 중간에서 자르지 않음
   const cut = best === null ? mid : best;
   const a = ch.slice(0, cut).join("").trim(), b = ch.slice(cut).join("").trim();
   return a && b ? [a, b] : null;
