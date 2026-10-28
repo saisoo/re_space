@@ -412,7 +412,6 @@ const CATEGORY_META = {
   special:    { short:"특별실",     label:"특별실",     color:"#f5d0fe", border:"#c026d3" },
   library:    { short:"도서관",     label:"도서관",     color:"#d9f99d", border:"#65a30d" },
   common:     { short:"공용",       label:"공용",       color:"#99f6e4", border:"#14b8a6" },
-  rest:       { short:"휴게공간",   label:"휴게공간",   color:"#fecaca", border:"#ef4444" },
   // 계단·화장실·현관 등 고정 시설 (공간 구분과 별도로 회색 표시)
   fixed:      { short:"고정 시설",  label:"고정 시설(계단·화장실 등)", color:"#d9dde3", border:"#9aa1ac" },
 };
@@ -426,7 +425,6 @@ function migrateCat(cat, name){
     case "special": return /영어|일본어|중국어|외국어/.test(name) ? "language" : "special";
     case "common":
       if(/도서관|북카페/.test(name)) return "library";
-      if(/휴게/.test(name)) return "rest";
       if(/바리스타/.test(name)) return "special";
       return "common";
     case "admin":   return /소규모학습실/.test(name) ? "common" : "admin";
@@ -478,8 +476,7 @@ const PALETTE = [
   { key:"facility",   items:[ {name:"행정실", seq:true}, {name:"보일러실", fixed:true} ]},
   { key:"special",    items:[ {name:"특별실", seq:true} ]},
   { key:"library",    items:[ {name:"도서관"} ]},
-  { key:"common",     items:[ {name:"공용실", seq:true}, {name:"공실(빈 공간)"} ]},
-  { key:"rest",       items:[ {name:"휴게실", seq:true} ]},
+  { key:"common",     items:[ {name:"공용실", seq:true}, {name:"휴게실", seq:true}, {name:"공실(빈 공간)"} ]},
 ];
 
 /* =========================================================
@@ -513,7 +510,7 @@ const ROOM_DATA = {
     5: [
       R("학습1실","171","common"),
       R("학습2실","172","common"),
-      R("휴게 및 전시실","173","rest",{size:{w:2}}),
+      R("휴게 및 전시실","173","common",{size:{w:2}}),
       R("일본어실","174","language"),
       R("중국어실","174-2","language"),
       R("화장실(남)","175","fixed",{fixed:true}),
@@ -1417,6 +1414,9 @@ function isHangul(c){ return /[가-힣]/.test(c); }
 function splitName(name){
   const ch = Array.from(String(name || "").trim());
   if(ch.length < 4) return null;
+  // '…실습실'은 항상 '실습실' 앞에서 나눔 (보건 / 실습실1, 디자인 / 실습실1, SW / 실습실1)
+  const sIdx = ch.join("").indexOf("실습실");
+  if(sIdx >= 2) return [ch.slice(0, sIdx).join("").trim(), ch.slice(sIdx).join("").trim()];
   const mid = Math.floor(ch.length / 2);
   let best = null;
   ch.forEach((c, i)=>{
@@ -2835,6 +2835,7 @@ document.getElementById("scenarioName").addEventListener("keydown", ev=>{ if(ev.
    공유 링크: 배치를 압축해 주소(#share=...)에 담음 — 서버 없이 링크만으로 주고받기
 ========================================================= */
 // 공유 링크의 카테고리 번호 — 새 구분은 반드시 맨 뒤에 추가 (이미 보낸 링크의 번호가 바뀌지 않도록)
+// "rest"(휴게공간)는 없앤 구분이지만 번호 자리를 지키려고 남겨 둠 — 읽을 때 공용으로 바뀜 (normalizeState)
 const CAT_KEYS = ["computer","health","design","accounting","classroom","language","admin","special","library","common","rest","fixed","facility"];
 // 공유용으로 짧게: [가로칸수, [[층행, 칸, 폭, 이름, 카테고리번호, 고정, 호실, 메모], ...]]
 function packState(st){
