@@ -334,6 +334,8 @@ const CATEGORY_META = {
 };
 
 // 하단 팔레트 버튼 구성
+// seq:true 인 항목은 비슷한 부류를 하나로 묶은 버튼 — 놓을 때마다 "디자인실1, 디자인실2…"처럼 번호가 자동으로 붙음
+// (구체적인 이름은 배치 후 편집 창에서 바꾸거나, 팔레트 왼쪽 '신규 공간' 입력칸으로 바로 추가)
 const PALETTE = [
   { key:"fixed", items:[
       {name:"계단", fixed:true},
@@ -341,45 +343,13 @@ const PALETTE = [
       {name:"엘리베이터", fixed:true},
       {name:"보일러실", fixed:true},
   ]},
-  { key:"design", items:[
-      {name:"시각디자인실"},
-      {name:"캐릭터제작실"},
-      {name:"VR콘텐츠디자인실"},
-      {name:"멀티미디어실"},
-      {name:"미술실"},
-  ]},
-  { key:"swit", items:[
-      {name:"컴퓨터보안실"},
-      {name:"데이터베이스실"},
-      {name:"빅데이터분석실"},
-      {name:"전자상거래실무실"},
-      {name:"회계실무실"},
-  ]},
-  { key:"special", items:[
-      {name:"과학실"},
-      {name:"음악실"},
-      {name:"영어실"},
-      {name:"방송실"},
-  ]},
-  { key:"classroom", items:[
-      {name:"일반교실"},
-  ]},
-  { key:"admin", items:[
-      {name:"교무실"},
-      {name:"행정실"},
-      {name:"진로상담실"},
-  ]},
-  { key:"health", items:[
-      {name:"보건실"},
-      {name:"간호실습실"},
-  ]},
-  { key:"common", items:[
-      {name:"메이커스페이스", size:{w:3}},
-      {name:"학생휴게실"},
-      {name:"휴게 및 전시실", size:{w:2}},
-      {name:"북카페/도서관", size:{w:2}},
-      {name:"비전룸"},
-  ]},
+  { key:"classroom", items:[ {name:"일반교실", seq:true} ]},
+  { key:"design",    items:[ {name:"디자인실", seq:true} ]},
+  { key:"swit",      items:[ {name:"SW·IT실", seq:true} ]},
+  { key:"special",   items:[ {name:"특별실", seq:true} ]},
+  { key:"admin",     items:[ {name:"행정실", seq:true} ]},
+  { key:"health",    items:[ {name:"보건실", seq:true} ]},
+  { key:"common",    items:[ {name:"공용실", seq:true} ]},
 ];
 
 /* =========================================================
@@ -967,7 +937,10 @@ function renderPalette(){
       b.style.borderColor = meta.border + "66";
       b.draggable = true;
       b.title = `${meta.label} · 폭 ${w}칸(${w*UNIT_AREA}㎡)`;
-      b.innerHTML = esc(item.name) + (w > 1 ? ` <span class="opacity-50">×${w}</span>` : "");
+      b.innerHTML = esc(item.name)
+        + (item.seq ? `<span class="seqNo opacity-50 font-bold" data-base="${esc(item.name)}"></span>` : "")
+        + (w > 1 ? ` <span class="opacity-50">×${w}</span>` : "");
+      if(item.seq) b.title = `${meta.label} · 누를 때마다 ${item.name}1, ${item.name}2…처럼 번호가 붙어요`;
       b.addEventListener("click", ()=> addBlockFromPalette(group.key, item));
       b.addEventListener("dragstart", ev=>{
         ev.dataTransfer.setData("text/plain", JSON.stringify({cat:group.key, item}));
@@ -983,8 +956,26 @@ function renderPalette(){
     addBlockFromPalette(document.getElementById("customCategory").value, {name:v});
     input.value = "";
   };
+  updatePaletteNumbers();
   document.getElementById("customAddBtn").onclick = addCustom;
   document.getElementById("customName").addEventListener("keydown", ev=>{ if(ev.key === "Enter") addCustom(); });
+}
+
+/* ---- 묶음 버튼 자동 번호: 전체 동에서 "이름+숫자" 중 가장 큰 번호 다음 ---- */
+function nextSeqName(base){
+  const re = new RegExp("^" + base.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "(\\d+)$");
+  let max = 0;
+  Object.values(state).forEach(zs=> zs.blocks.forEach(b=>{
+    const m = re.exec(b.name);
+    if(m) max = Math.max(max, parseInt(m[1], 10));
+  }));
+  return base + (max + 1);
+}
+// 팔레트 버튼에 다음에 붙을 번호를 작게 표시 (예: 디자인실 → 3)
+function updatePaletteNumbers(){
+  paletteRoot.querySelectorAll(".seqNo").forEach(el=>{
+    el.textContent = nextSeqName(el.dataset.base).slice(el.dataset.base.length);
+  });
 }
 
 // opts.advance: 놓은 뒤 같은 층 오른쪽의 다음 빈 칸을 자동으로 선택 (연달아 배치하기 편하게)
@@ -994,7 +985,7 @@ function placeNewBlock(category, item, target, opts){
   const w = (item.size && item.size.w) || 1;
   pushUndo();
   const nb = {
-    id:newId(), name:item.name, num:"", category, note:"",
+    id:newId(), name: item.seq ? nextSeqName(item.name) : item.name, num:"", category, note:"",
     row:target.row, col:target.col, w, h:1, fixed:!!item.fixed,
   };
   zs.blocks.push(nb);
@@ -1008,6 +999,7 @@ function placeNewBlock(category, item, target, opts){
     }
   }
   renderCanvas();
+  if(pendingMode) renderModeBar();
   toastUndo(`'${nb.name}'을(를) ${floorLabelText(currentZone, zs.floors[nb.row])}에 배치했어요.`);
 }
 
@@ -1050,7 +1042,8 @@ function renderModeBar(){
   const msg = document.getElementById("modeMsg");
   const done = document.getElementById("modeDone");
   if(pendingMode.type === "place"){
-    msg.textContent = `'${pendingMode.item.name}' → 놓을 빈 칸 누르기`;
+    const nm = pendingMode.item.seq ? nextSeqName(pendingMode.item.name) : pendingMode.item.name;
+    msg.textContent = `'${nm}' → 놓을 빈 칸 누르기`;
     done.textContent = "완료";
     const btn = paletteRoot.querySelector(`[data-key="${CSS.escape(pendingMode.cat + "|" + pendingMode.item.name)}"]`);
     if(btn) btn.classList.add("armed");
@@ -1260,6 +1253,7 @@ function renderCanvas(opts){
   updateDiffButton(changedCount);
   renderLegend(zs);
   renderEmptyState(zs);
+  updatePaletteNumbers();
   // 리스트·통계는 '배치 리스트 · 도구' 창이 열려 있을 때만 계산 (평소 조작을 가볍게)
   if(!document.getElementById("managePopup").classList.contains("hidden")){
     renderList(zs);
