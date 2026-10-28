@@ -4,10 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>덕영고 공간재구조화 인터랙티브 시뮬레이터</title>
-<script src="https://cdn.tailwindcss.com"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<!-- Pretendard는 구글 폰트에 없어서 이전 링크로는 불러와지지 않았음 — 공식 배포본(화면에 쓰인 글자만 나눠 받는 dynamic subset)으로 교체 -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/pretendard@1.3.9/dist/web/static/pretendard-dynamic-subset.css">
 <style>
   * { font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, 'Malgun Gothic', sans-serif; }
 
@@ -96,6 +94,26 @@
   .scrollbar-thin::-webkit-scrollbar-track { background:transparent; }
 
   #toast { transition: opacity .2s ease, transform .2s ease; }
+
+  /* 새로 놓인 공간이 '톡' 튀어나오는 효과 */
+  @keyframes popIn { 0% { transform: scale(.6); opacity: 0; } 70% { transform: scale(1.06); opacity: 1; } 100% { transform: scale(1); } }
+  .room-block.popIn { animation: popIn .28s ease-out; }
+
+  /* 배치/옮기기 모드: 놓을 수 있는 칸을 강조 */
+  @keyframes pulseTarget { 0%,100% { background: rgba(16,185,129,.10); } 50% { background: rgba(16,185,129,.24); } }
+  .blankCell.target { border-color:#10b981; border-style:solid; animation: pulseTarget 1.4s ease-in-out infinite; }
+  .room-block.swapTarget { outline: 3px dashed #2563eb; outline-offset: 1px; }
+  .room-block.moving { outline: 3px solid #10b981; outline-offset: 1px; z-index: 30; }
+  .room-block.catDim { opacity: .25; }
+
+  .legendChip { display:inline-flex; align-items:center; gap:4px; white-space:nowrap; padding:1px 7px; border-radius:999px;
+    font-size:10px; font-weight:700; color:#475569; background:#f8fafc; border:1.5px solid #e2e8f0; cursor:pointer; transition:.12s; }
+  .legendChip.on { background:#0f172a; color:#fff; border-color:#0f172a; }
+  .sidebarBtn.armed { outline: 2.5px solid #0f172a; outline-offset: 1px; transform: translateY(-1px); }
+
+  .catChip { display:inline-flex; align-items:center; gap:4px; padding:4px 8px; border-radius:999px; font-size:11px; font-weight:700;
+    border:1.5px solid; cursor:pointer; color:#334155; }
+  .catChip.on { box-shadow: 0 0 0 2px #0f172a; }
   #toast.hiddenToast { opacity:0; transform: translate(-50%, 8px); pointer-events:none; }
 
   /* 층 라벨은 가로 스크롤(모바일) 시에도 왼쪽에 고정 */
@@ -117,6 +135,14 @@
     .resizeHandle { width: 20px; }
   }
 </style>
+<!--
+  Tailwind CSS: 실행 중에 페이지를 계속 다시 훑는 CDN 스크립트(cdn.tailwindcss.com, 약 400KB) 대신
+  이 파일에서 실제로 쓰는 클래스만 미리 뽑아 둔 CSS(약 16KB)를 넣어 화면 조작을 가볍게 함.
+  새 Tailwind 클래스를 추가했다면 CSS를 다시 생성해야 적용됨:
+    Tailwind CLI v3.4 로 input.css(@tailwind base; @tailwind components; @tailwind utilities;)를
+    content 옵션 = index.html, minify 옵션 켜고 빌드한 결과로 아래 style 태그(id=tailwind) 내용을 교체.
+-->
+<style id="tailwind">*,:after,:before{--tw-border-spacing-x:0;--tw-border-spacing-y:0;--tw-translate-x:0;--tw-translate-y:0;--tw-rotate:0;--tw-skew-x:0;--tw-skew-y:0;--tw-scale-x:1;--tw-scale-y:1;--tw-pan-x: ;--tw-pan-y: ;--tw-pinch-zoom: ;--tw-scroll-snap-strictness:proximity;--tw-gradient-from-position: ;--tw-gradient-via-position: ;--tw-gradient-to-position: ;--tw-ordinal: ;--tw-slashed-zero: ;--tw-numeric-figure: ;--tw-numeric-spacing: ;--tw-numeric-fraction: ;--tw-ring-inset: ;--tw-ring-offset-width:0px;--tw-ring-offset-color:#fff;--tw-ring-color:rgba(59,130,246,.5);--tw-ring-offset-shadow:0 0 #0000;--tw-ring-shadow:0 0 #0000;--tw-shadow:0 0 #0000;--tw-shadow-colored:0 0 #0000;--tw-blur: ;--tw-brightness: ;--tw-contrast: ;--tw-grayscale: ;--tw-hue-rotate: ;--tw-invert: ;--tw-saturate: ;--tw-sepia: ;--tw-drop-shadow: ;--tw-backdrop-blur: ;--tw-backdrop-brightness: ;--tw-backdrop-contrast: ;--tw-backdrop-grayscale: ;--tw-backdrop-hue-rotate: ;--tw-backdrop-invert: ;--tw-backdrop-opacity: ;--tw-backdrop-saturate: ;--tw-backdrop-sepia: ;--tw-contain-size: ;--tw-contain-layout: ;--tw-contain-paint: ;--tw-contain-style: }::backdrop{--tw-border-spacing-x:0;--tw-border-spacing-y:0;--tw-translate-x:0;--tw-translate-y:0;--tw-rotate:0;--tw-skew-x:0;--tw-skew-y:0;--tw-scale-x:1;--tw-scale-y:1;--tw-pan-x: ;--tw-pan-y: ;--tw-pinch-zoom: ;--tw-scroll-snap-strictness:proximity;--tw-gradient-from-position: ;--tw-gradient-via-position: ;--tw-gradient-to-position: ;--tw-ordinal: ;--tw-slashed-zero: ;--tw-numeric-figure: ;--tw-numeric-spacing: ;--tw-numeric-fraction: ;--tw-ring-inset: ;--tw-ring-offset-width:0px;--tw-ring-offset-color:#fff;--tw-ring-color:rgba(59,130,246,.5);--tw-ring-offset-shadow:0 0 #0000;--tw-ring-shadow:0 0 #0000;--tw-shadow:0 0 #0000;--tw-shadow-colored:0 0 #0000;--tw-blur: ;--tw-brightness: ;--tw-contrast: ;--tw-grayscale: ;--tw-hue-rotate: ;--tw-invert: ;--tw-saturate: ;--tw-sepia: ;--tw-drop-shadow: ;--tw-backdrop-blur: ;--tw-backdrop-brightness: ;--tw-backdrop-contrast: ;--tw-backdrop-grayscale: ;--tw-backdrop-hue-rotate: ;--tw-backdrop-invert: ;--tw-backdrop-opacity: ;--tw-backdrop-saturate: ;--tw-backdrop-sepia: ;--tw-contain-size: ;--tw-contain-layout: ;--tw-contain-paint: ;--tw-contain-style: }/*! tailwindcss v3.4.17 | MIT License | https://tailwindcss.com*/*,:after,:before{box-sizing:border-box;border:0 solid #e5e7eb}:after,:before{--tw-content:""}:host,html{line-height:1.5;-webkit-text-size-adjust:100%;-moz-tab-size:4;-o-tab-size:4;tab-size:4;font-family:ui-sans-serif,system-ui,sans-serif,Apple Color Emoji,Segoe UI Emoji,Segoe UI Symbol,Noto Color Emoji;font-feature-settings:normal;font-variation-settings:normal;-webkit-tap-highlight-color:transparent}body{margin:0;line-height:inherit}hr{height:0;color:inherit;border-top-width:1px}abbr:where([title]){-webkit-text-decoration:underline dotted;text-decoration:underline dotted}h1,h2,h3,h4,h5,h6{font-size:inherit;font-weight:inherit}a{color:inherit;text-decoration:inherit}b,strong{font-weight:bolder}code,kbd,pre,samp{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,Liberation Mono,Courier New,monospace;font-feature-settings:normal;font-variation-settings:normal;font-size:1em}small{font-size:80%}sub,sup{font-size:75%;line-height:0;position:relative;vertical-align:baseline}sub{bottom:-.25em}sup{top:-.5em}table{text-indent:0;border-color:inherit;border-collapse:collapse}button,input,optgroup,select,textarea{font-family:inherit;font-feature-settings:inherit;font-variation-settings:inherit;font-size:100%;font-weight:inherit;line-height:inherit;letter-spacing:inherit;color:inherit;margin:0;padding:0}button,select{text-transform:none}button,input:where([type=button]),input:where([type=reset]),input:where([type=submit]){-webkit-appearance:button;background-color:transparent;background-image:none}:-moz-focusring{outline:auto}:-moz-ui-invalid{box-shadow:none}progress{vertical-align:baseline}::-webkit-inner-spin-button,::-webkit-outer-spin-button{height:auto}[type=search]{-webkit-appearance:textfield;outline-offset:-2px}::-webkit-search-decoration{-webkit-appearance:none}::-webkit-file-upload-button{-webkit-appearance:button;font:inherit}summary{display:list-item}blockquote,dd,dl,figure,h1,h2,h3,h4,h5,h6,hr,p,pre{margin:0}fieldset{margin:0}fieldset,legend{padding:0}menu,ol,ul{list-style:none;margin:0;padding:0}dialog{padding:0}textarea{resize:vertical}input::-moz-placeholder,textarea::-moz-placeholder{opacity:1;color:#9ca3af}input::placeholder,textarea::placeholder{opacity:1;color:#9ca3af}[role=button],button{cursor:pointer}:disabled{cursor:default}audio,canvas,embed,iframe,img,object,svg,video{display:block;vertical-align:middle}img,video{max-width:100%;height:auto}[hidden]:where(:not([hidden=until-found])){display:none}.pointer-events-none{pointer-events:none}.pointer-events-auto{pointer-events:auto}.visible{visibility:visible}.fixed{position:fixed}.absolute{position:absolute}.relative{position:relative}.sticky{position:sticky}.inset-0{inset:0}.inset-x-3{left:.75rem;right:.75rem}.bottom-3{bottom:.75rem}.bottom-\[140px\]{bottom:140px}.left-1\/2{left:50%}.top-\[104px\]{top:104px}.z-\[60\]{z-index:60}.z-\[65\]{z-index:65}.z-\[70\]{z-index:70}.mx-0\.5{margin-left:.125rem;margin-right:.125rem}.mb-0\.5{margin-bottom:.125rem}.mb-1{margin-bottom:.25rem}.mb-1\.5{margin-bottom:.375rem}.mb-2{margin-bottom:.5rem}.mb-3{margin-bottom:.75rem}.mt-1{margin-top:.25rem}.mt-1\.5{margin-top:.375rem}.\!block{display:block!important}.block{display:block}.flex{display:flex}.hidden{display:none}.h-1\.5{height:.375rem}.h-4{height:1rem}.h-5{height:1.25rem}.h-6{height:1.5rem}.h-8{height:2rem}.h-\[124px\]{height:124px}.h-screen{height:100vh}.max-h-48{max-height:12rem}.max-h-\[55vh\]{max-height:55vh}.max-h-\[70vh\]{max-height:70vh}.min-h-0{min-height:0}.w-16{width:4rem}.w-20{width:5rem}.w-32{width:8rem}.w-5{width:1.25rem}.w-6{width:1.5rem}.w-8{width:2rem}.w-full{width:100%}.w-px{width:1px}.min-w-0{min-width:0}.min-w-\[16px\]{min-width:16px}.min-w-\[28px\]{min-width:28px}.min-w-\[72px\]{min-width:72px}.max-w-\[300px\]{max-width:300px}.max-w-\[92vw\]{max-width:92vw}.max-w-\[94vw\]{max-width:94vw}.flex-1{flex:1 1 0%}.flex-shrink-0{flex-shrink:0}.-translate-x-1\/2{--tw-translate-x:-50%}.-translate-x-1\/2,.transform{transform:translate(var(--tw-translate-x),var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y))}.cursor-pointer{cursor:pointer}.select-none{-webkit-user-select:none;-moz-user-select:none;user-select:none}.resize-none{resize:none}.resize{resize:both}.flex-col{flex-direction:column}.flex-wrap{flex-wrap:wrap}.items-center{align-items:center}.justify-center{justify-content:center}.justify-between{justify-content:space-between}.gap-0\.5{gap:.125rem}.gap-1{gap:.25rem}.gap-1\.5{gap:.375rem}.gap-2{gap:.5rem}.gap-x-2{-moz-column-gap:.5rem;column-gap:.5rem}.gap-y-1{row-gap:.25rem}.space-y-1>:not([hidden])~:not([hidden]){--tw-space-y-reverse:0;margin-top:calc(.25rem*(1 - var(--tw-space-y-reverse)));margin-bottom:calc(.25rem*var(--tw-space-y-reverse))}.space-y-1\.5>:not([hidden])~:not([hidden]){--tw-space-y-reverse:0;margin-top:calc(.375rem*(1 - var(--tw-space-y-reverse)));margin-bottom:calc(.375rem*var(--tw-space-y-reverse))}.space-y-2>:not([hidden])~:not([hidden]){--tw-space-y-reverse:0;margin-top:calc(.5rem*(1 - var(--tw-space-y-reverse)));margin-bottom:calc(.5rem*var(--tw-space-y-reverse))}.space-y-2\.5>:not([hidden])~:not([hidden]){--tw-space-y-reverse:0;margin-top:calc(.625rem*(1 - var(--tw-space-y-reverse)));margin-bottom:calc(.625rem*var(--tw-space-y-reverse))}.space-y-4>:not([hidden])~:not([hidden]){--tw-space-y-reverse:0;margin-top:calc(1rem*(1 - var(--tw-space-y-reverse)));margin-bottom:calc(1rem*var(--tw-space-y-reverse))}.overflow-hidden{overflow:hidden}.overflow-x-auto{overflow-x:auto}.overflow-y-auto{overflow-y:auto}.truncate{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.rounded{border-radius:.25rem}.rounded-2xl{border-radius:1rem}.rounded-full{border-radius:9999px}.rounded-lg{border-radius:.5rem}.rounded-md{border-radius:.375rem}.rounded-xl{border-radius:.75rem}.border{border-width:1px}.border-b{border-bottom-width:1px}.border-t{border-top-width:1px}.border-slate-200{--tw-border-opacity:1;border-color:rgb(226 232 240/var(--tw-border-opacity,1))}.border-slate-300{--tw-border-opacity:1;border-color:rgb(203 213 225/var(--tw-border-opacity,1))}.bg-amber-100{--tw-bg-opacity:1;background-color:rgb(254 243 199/var(--tw-bg-opacity,1))}.bg-amber-400{--tw-bg-opacity:1;background-color:rgb(251 191 36/var(--tw-bg-opacity,1))}.bg-amber-50{--tw-bg-opacity:1;background-color:rgb(255 251 235/var(--tw-bg-opacity,1))}.bg-blue-100{--tw-bg-opacity:1;background-color:rgb(219 234 254/var(--tw-bg-opacity,1))}.bg-blue-50{--tw-bg-opacity:1;background-color:rgb(239 246 255/var(--tw-bg-opacity,1))}.bg-blue-600{--tw-bg-opacity:1;background-color:rgb(37 99 235/var(--tw-bg-opacity,1))}.bg-emerald-50{--tw-bg-opacity:1;background-color:rgb(236 253 245/var(--tw-bg-opacity,1))}.bg-emerald-600{--tw-bg-opacity:1;background-color:rgb(5 150 105/var(--tw-bg-opacity,1))}.bg-indigo-50{--tw-bg-opacity:1;background-color:rgb(238 242 255/var(--tw-bg-opacity,1))}.bg-indigo-600{--tw-bg-opacity:1;background-color:rgb(79 70 229/var(--tw-bg-opacity,1))}.bg-rose-50{--tw-bg-opacity:1;background-color:rgb(255 241 242/var(--tw-bg-opacity,1))}.bg-slate-100{--tw-bg-opacity:1;background-color:rgb(241 245 249/var(--tw-bg-opacity,1))}.bg-slate-200{--tw-bg-opacity:1;background-color:rgb(226 232 240/var(--tw-bg-opacity,1))}.bg-slate-50{--tw-bg-opacity:1;background-color:rgb(248 250 252/var(--tw-bg-opacity,1))}.bg-slate-900{--tw-bg-opacity:1;background-color:rgb(15 23 42/var(--tw-bg-opacity,1))}.bg-teal-500{--tw-bg-opacity:1;background-color:rgb(20 184 166/var(--tw-bg-opacity,1))}.bg-white{--tw-bg-opacity:1;background-color:rgb(255 255 255/var(--tw-bg-opacity,1))}.bg-white\/95{background-color:hsla(0,0%,100%,.95)}.p-0\.5{padding:.125rem}.p-1\.5{padding:.375rem}.p-2{padding:.5rem}.p-3{padding:.75rem}.p-4{padding:1rem}.px-1{padding-left:.25rem;padding-right:.25rem}.px-1\.5{padding-left:.375rem;padding-right:.375rem}.px-2{padding-left:.5rem;padding-right:.5rem}.px-2\.5{padding-left:.625rem;padding-right:.625rem}.px-3{padding-left:.75rem;padding-right:.75rem}.py-0\.5{padding-top:.125rem;padding-bottom:.125rem}.py-1{padding-top:.25rem;padding-bottom:.25rem}.py-1\.5{padding-top:.375rem;padding-bottom:.375rem}.py-2{padding-top:.5rem;padding-bottom:.5rem}.pb-1{padding-bottom:.25rem}.pl-1{padding-left:.25rem}.pl-3{padding-left:.75rem}.pr-1\.5{padding-right:.375rem}.pr-2{padding-right:.5rem}.pt-1{padding-top:.25rem}.pt-2{padding-top:.5rem}.text-center{text-align:center}.text-\[10\.5px\]{font-size:10.5px}.text-\[10px\]{font-size:10px}.text-\[11px\]{font-size:11px}.text-\[12px\]{font-size:12px}.text-\[13px\]{font-size:13px}.text-\[9px\]{font-size:9px}.text-base{font-size:1rem;line-height:1.5rem}.text-sm{font-size:.875rem;line-height:1.25rem}.text-xs{font-size:.75rem;line-height:1rem}.font-bold{font-weight:700}.font-extrabold{font-weight:800}.font-normal{font-weight:400}.font-semibold{font-weight:600}.leading-none{line-height:1}.leading-snug{line-height:1.375}.leading-tight{line-height:1.25}.text-amber-700{--tw-text-opacity:1;color:rgb(180 83 9/var(--tw-text-opacity,1))}.text-amber-800{--tw-text-opacity:1;color:rgb(146 64 14/var(--tw-text-opacity,1))}.text-blue-600{--tw-text-opacity:1;color:rgb(37 99 235/var(--tw-text-opacity,1))}.text-blue-700{--tw-text-opacity:1;color:rgb(29 78 216/var(--tw-text-opacity,1))}.text-emerald-700{--tw-text-opacity:1;color:rgb(4 120 87/var(--tw-text-opacity,1))}.text-indigo-600{--tw-text-opacity:1;color:rgb(79 70 229/var(--tw-text-opacity,1))}.text-rose-500{--tw-text-opacity:1;color:rgb(244 63 94/var(--tw-text-opacity,1))}.text-slate-400{--tw-text-opacity:1;color:rgb(148 163 184/var(--tw-text-opacity,1))}.text-slate-500{--tw-text-opacity:1;color:rgb(100 116 139/var(--tw-text-opacity,1))}.text-slate-600{--tw-text-opacity:1;color:rgb(71 85 105/var(--tw-text-opacity,1))}.text-slate-700{--tw-text-opacity:1;color:rgb(51 65 85/var(--tw-text-opacity,1))}.text-slate-800{--tw-text-opacity:1;color:rgb(30 41 59/var(--tw-text-opacity,1))}.text-slate-900{--tw-text-opacity:1;color:rgb(15 23 42/var(--tw-text-opacity,1))}.text-white{--tw-text-opacity:1;color:rgb(255 255 255/var(--tw-text-opacity,1))}.opacity-50{opacity:.5}.shadow-lg{--tw-shadow:0 10px 15px -3px rgba(0,0,0,.1),0 4px 6px -4px rgba(0,0,0,.1);--tw-shadow-colored:0 10px 15px -3px var(--tw-shadow-color),0 4px 6px -4px var(--tw-shadow-color)}.shadow-lg,.shadow-sm{box-shadow:var(--tw-ring-offset-shadow,0 0 #0000),var(--tw-ring-shadow,0 0 #0000),var(--tw-shadow)}.shadow-sm{--tw-shadow:0 1px 2px 0 rgba(0,0,0,.05);--tw-shadow-colored:0 1px 2px 0 var(--tw-shadow-color)}.outline{outline-style:solid}.blur{--tw-blur:blur(8px)}.blur,.filter{filter:var(--tw-blur) var(--tw-brightness) var(--tw-contrast) var(--tw-grayscale) var(--tw-hue-rotate) var(--tw-invert) var(--tw-saturate) var(--tw-sepia) var(--tw-drop-shadow)}.transition{transition-property:color,background-color,border-color,text-decoration-color,fill,stroke,opacity,box-shadow,transform,filter,-webkit-backdrop-filter;transition-property:color,background-color,border-color,text-decoration-color,fill,stroke,opacity,box-shadow,transform,filter,backdrop-filter;transition-property:color,background-color,border-color,text-decoration-color,fill,stroke,opacity,box-shadow,transform,filter,backdrop-filter,-webkit-backdrop-filter;transition-timing-function:cubic-bezier(.4,0,.2,1);transition-duration:.15s}.ease-in-out{transition-timing-function:cubic-bezier(.4,0,.2,1)}.hover\:bg-amber-200:hover{--tw-bg-opacity:1;background-color:rgb(253 230 138/var(--tw-bg-opacity,1))}.hover\:bg-blue-700:hover{--tw-bg-opacity:1;background-color:rgb(29 78 216/var(--tw-bg-opacity,1))}.hover\:bg-emerald-700:hover{--tw-bg-opacity:1;background-color:rgb(4 120 87/var(--tw-bg-opacity,1))}.hover\:bg-indigo-100:hover{--tw-bg-opacity:1;background-color:rgb(224 231 255/var(--tw-bg-opacity,1))}.hover\:bg-indigo-700:hover{--tw-bg-opacity:1;background-color:rgb(67 56 202/var(--tw-bg-opacity,1))}.hover\:bg-rose-100:hover{--tw-bg-opacity:1;background-color:rgb(255 228 230/var(--tw-bg-opacity,1))}.hover\:bg-slate-100:hover{--tw-bg-opacity:1;background-color:rgb(241 245 249/var(--tw-bg-opacity,1))}.hover\:bg-slate-200:hover{--tw-bg-opacity:1;background-color:rgb(226 232 240/var(--tw-bg-opacity,1))}.hover\:bg-slate-50:hover{--tw-bg-opacity:1;background-color:rgb(248 250 252/var(--tw-bg-opacity,1))}.hover\:bg-teal-600:hover{--tw-bg-opacity:1;background-color:rgb(13 148 136/var(--tw-bg-opacity,1))}.hover\:text-slate-600:hover{--tw-text-opacity:1;color:rgb(71 85 105/var(--tw-text-opacity,1))}.hover\:underline:hover{text-decoration-line:underline}.disabled\:bg-slate-100:disabled{--tw-bg-opacity:1;background-color:rgb(241 245 249/var(--tw-bg-opacity,1))}.disabled\:text-slate-400:disabled{--tw-text-opacity:1;color:rgb(148 163 184/var(--tw-text-opacity,1))}.disabled\:opacity-35:disabled{opacity:.35}.disabled\:opacity-60:disabled{opacity:.6}@media (min-width:640px){.sm\:inset-x-auto{left:auto;right:auto}.sm\:bottom-24{bottom:6rem}.sm\:bottom-4{bottom:1rem}.sm\:bottom-auto{bottom:auto}.sm\:right-4{right:1rem}.sm\:top-\[104px\]{top:104px}.sm\:top-\[60px\]{top:60px}.sm\:top-auto{top:auto}.sm\:block{display:block}.sm\:flex{display:flex}.sm\:hidden{display:none}.sm\:h-\[84px\]{height:84px}.sm\:max-h-\[65vh\]{max-height:65vh}.sm\:max-h-\[75vh\]{max-height:75vh}.sm\:w-24{width:6rem}.sm\:w-36{width:9rem}.sm\:w-\[300px\]{width:300px}.sm\:w-\[320px\]{width:320px}.sm\:w-auto{width:auto}.sm\:flex-none{flex:none}.sm\:flex-shrink-0{flex-shrink:0}.sm\:flex-nowrap{flex-wrap:nowrap}.sm\:overflow-x-auto{overflow-x:auto}.sm\:px-3{padding-left:.75rem;padding-right:.75rem}.sm\:text-sm{font-size:.875rem;line-height:1.25rem}}@media (min-width:1024px){.lg\:block{display:block}}@media (min-width:1536px){.\32xl\:block{display:block}}</style>
 </head>
 <body class="bg-slate-100 text-slate-800 h-screen overflow-hidden flex flex-col">
 
@@ -168,13 +194,26 @@
           <button id="padColsPlus" title="오른쪽 빈 열 늘리기(칸이 작아짐)" class="w-5 h-5 rounded bg-white border border-slate-200 hover:bg-slate-100 text-slate-600 font-bold text-xs leading-none disabled:opacity-35">+</button>
         </div>
       </div>
-      <p class="text-[10px] text-slate-400 sm:hidden" data-html2canvas-ignore="true">탭: 선택·편집 · 꾹 끌기: 이동 · 빈 곳 밀기: 화면 이동</p>
-      <p class="text-[10px] text-slate-400 hidden lg:block" data-html2canvas-ignore="true">클릭: 선택 · 드래그: 이동(같은 크기 칸 위로 놓으면 맞교환) · 방향키: 한 칸 이동 · 오른쪽 손잡이: 면적 조정 · Shift+클릭: 병합 · Ctrl+클릭: 다중선택 · Ctrl+A: 전체 선택 · Ctrl+D: 복제 · Delete: 삭제 · 가로 1칸≈20㎡</p>
+      <p class="text-[10px] text-slate-400 sm:hidden" data-html2canvas-ignore="true">팔레트 탭 → 빈 칸 탭: 배치 · 공간 탭: 편집 · 꾹 눌러 끌기: 이동</p>
+      <p class="text-[10px] text-slate-400 hidden lg:block" data-html2canvas-ignore="true">팔레트 클릭 → 빈 칸 클릭: 배치 · 클릭: 선택 · 드래그: 이동(같은 크기 칸 위로 놓으면 맞교환) · 방향키: 한 칸 이동 · 오른쪽 손잡이: 면적 조정 · Shift+클릭: 병합 · Ctrl+클릭: 다중선택 · Ctrl+A: 전체 선택 · Ctrl+D: 복제 · Delete: 삭제 · 가로 1칸≈20㎡</p>
     </div>
-    <div id="canvasWrap" class="relative rounded-xl border border-slate-200 flex-1 min-h-0">
-      <div class="flex" style="min-height:100%;">
-        <div id="rowLabels" class="flex flex-col flex-shrink-0 px-1" style="padding-top:2px;"></div>
-        <div id="canvas" class="relative flex-shrink-0"></div>
+    <!-- 카테고리 범례: 누르면 그 카테고리 공간만 강조 -->
+    <div id="legendBar" class="flex gap-1 overflow-x-auto scrollbar-thin px-1 pb-1 flex-shrink-0" data-html2canvas-ignore="true"></div>
+    <div class="relative flex-1 min-h-0 flex flex-col">
+      <div id="canvasWrap" class="relative rounded-xl border border-slate-200 flex-1 min-h-0">
+        <div class="flex" style="min-height:100%;">
+          <div id="rowLabels" class="flex flex-col flex-shrink-0 px-1" style="padding-top:2px;"></div>
+          <div id="canvas" class="relative flex-shrink-0"></div>
+        </div>
+      </div>
+      <!-- 빈 동 시작 안내 -->
+      <div id="emptyState" class="hidden absolute inset-0 flex items-center justify-center p-4 pointer-events-none" data-html2canvas-ignore="true">
+        <div class="pointer-events-auto bg-white/95 border border-slate-200 shadow-lg rounded-2xl p-4 w-full max-w-[300px] text-center">
+          <p id="emptyTitle" class="text-sm font-extrabold text-slate-700"></p>
+          <p class="text-[11px] text-slate-400 mt-1 mb-3 leading-snug">2026학년도 실제 배치를 불러와 고치거나,<br>빈 칸에 공간을 하나씩 놓아 새로 만들 수 있어요.</p>
+          <button id="emptyLoadReal" class="w-full text-xs font-bold bg-indigo-600 text-white rounded-lg py-2 hover:bg-indigo-700">2026 실제 배치 불러오기</button>
+          <button id="emptyStartBlank" class="w-full mt-1.5 text-xs font-bold bg-slate-100 text-slate-600 rounded-lg py-2 hover:bg-slate-200">빈 칸에서 직접 만들기</button>
+        </div>
       </div>
     </div>
   </section>
@@ -183,7 +222,7 @@
   <div class="flex-shrink-0 bg-white rounded-2xl border border-slate-200 shadow-sm px-3 py-1 flex flex-col h-[124px] sm:h-[84px]">
     <div class="flex items-center justify-between flex-shrink-0 mb-0.5">
       <span class="text-[10px] font-extrabold text-slate-500">공간 팔레트</span>
-      <span class="text-[9px] text-slate-400 hidden sm:block">클릭하거나 캔버스 빈 칸으로 드래그해서 배치 · 버튼에 마우스를 올리면 카테고리가 보여요</span>
+      <span class="text-[9px] text-slate-400 hidden sm:block">공간을 누른 뒤 빈 칸 클릭(여러 번 가능) 또는 빈 칸으로 드래그 · 빈 칸을 먼저 고르고 누르면 바로 배치</span>
     </div>
     <div id="paletteBody" class="flex-1 min-h-0 overflow-y-auto scrollbar-thin">
       <div id="paletteRoot" class="flex flex-wrap gap-1 items-center"></div>
@@ -248,6 +287,12 @@
 </div>
 
 <!-- ===== 알림 토스트 ===== -->
+<!-- ===== 배치/옮기기 모드 안내 바 ===== -->
+<div id="modeBar" class="hidden fixed left-1/2 -translate-x-1/2 bottom-[140px] sm:bottom-auto sm:top-[60px] z-[65] bg-emerald-600 text-white text-xs font-bold pl-3 pr-1.5 py-1.5 rounded-full shadow-lg items-center gap-2 max-w-[94vw]">
+  <span id="modeMsg" class="truncate"></span>
+  <button id="modeDone" class="flex-shrink-0 px-2.5 py-1 rounded-full bg-white text-emerald-700 font-extrabold">완료</button>
+</div>
+
 <div id="toast" class="hiddenToast fixed left-1/2 top-[104px] sm:top-auto sm:bottom-24 -translate-x-1/2 z-[70] bg-slate-900 text-white text-xs font-semibold pl-3 pr-2 py-2 rounded-lg shadow-lg flex items-center gap-2 max-w-[92vw]"><span id="toastMsg"></span><button id="toastUndo" class="hidden flex-shrink-0 px-2 py-1 rounded-md bg-amber-400 text-slate-900 font-extrabold">되돌리기</button></div>
 
 <script>
@@ -278,14 +323,14 @@ const ZONE_META = {
 };
 
 const CATEGORY_META = {
-  fixed:     { label:"고정 구역(계단/화장실/현관 등)", color:"#d9dde3", border:"#9aa1ac" },
-  design:    { label:"디자인/미디어 실습실",  color:"#fbcfe8", border:"#ec4899" },
-  swit:      { label:"SW/IT/회계 실습실",     color:"#bae6fd", border:"#0ea5e9" },
-  special:   { label:"특별교육/외국어실",     color:"#ddd6fe", border:"#8b5cf6" },
-  classroom: { label:"일반교실",              color:"#fde68a", border:"#f59e0b" },
-  admin:     { label:"행정/교무 공간",        color:"#c7d2fe", border:"#6366f1" },
-  health:    { label:"보건/간호 실습실",      color:"#bbf7d0", border:"#22c55e" },
-  common:    { label:"공용/휴게/신규 공간",   color:"#99f6e4", border:"#14b8a6" },
+  fixed:     { short:"고정", label:"고정 구역(계단/화장실/현관 등)", color:"#d9dde3", border:"#9aa1ac" },
+  design:    { short:"디자인", label:"디자인/미디어 실습실",  color:"#fbcfe8", border:"#ec4899" },
+  swit:      { short:"SW/IT", label:"SW/IT/회계 실습실",     color:"#bae6fd", border:"#0ea5e9" },
+  special:   { short:"특별실", label:"특별교육/외국어실",     color:"#ddd6fe", border:"#8b5cf6" },
+  classroom: { short:"일반교실", label:"일반교실",              color:"#fde68a", border:"#f59e0b" },
+  admin:     { short:"행정", label:"행정/교무 공간",        color:"#c7d2fe", border:"#6366f1" },
+  health:    { short:"보건", label:"보건/간호 실습실",      color:"#bbf7d0", border:"#22c55e" },
+  common:    { short:"공용", label:"공용/휴게/신규 공간",   color:"#99f6e4", border:"#14b8a6" },
 };
 
 // 하단 팔레트 버튼 구성
@@ -742,6 +787,11 @@ let scenarios = {};       // 이름 -> 전체 state 스냅샷
 let searchQuery = "";
 let searchHits = [];      // [{zone, id}]
 let searchIdx = 0;
+let pendingMode = null;   // 탭 배치/옮기기 모드: {type:"place", cat, item} | {type:"move", id}
+let highlightCat = null;  // 범례에서 강조 중인 카테고리
+let lastAddedId = null;
+let editMoreOpen = false;  // 편집 창 '더보기'를 펼쳐 둔 상태 기억   // 방금 놓인 공간 (등장 애니메이션용)
+const dismissedEmpty = new Set(); // '빈 칸에서 직접 만들기'를 고른 동
 
 function zoneState(){ return state[currentZone]; }
 function clearSelection(){ selectedId = null; selectedBlank = null; multiSelect = []; }
@@ -879,6 +929,7 @@ function switchZone(z){
   if(z === currentZone) return;
   currentZone = z;
   clearSelection();
+  if(pendingMode && pendingMode.type === "move"){ pendingMode = null; renderModeBar(); }
   renderCanvas();
 }
 
@@ -911,6 +962,7 @@ function renderPalette(){
       const b = document.createElement("button");
       const w = (item.size && item.size.w) || 1;
       b.className = "sidebarBtn";
+      b.dataset.key = group.key + "|" + item.name;
       b.style.background = meta.color + "55";
       b.style.borderColor = meta.border + "66";
       b.draggable = true;
@@ -935,7 +987,9 @@ function renderPalette(){
   document.getElementById("customName").addEventListener("keydown", ev=>{ if(ev.key === "Enter") addCustom(); });
 }
 
-function placeNewBlock(category, item, target){
+// opts.advance: 놓은 뒤 같은 층 오른쪽의 다음 빈 칸을 자동으로 선택 (연달아 배치하기 편하게)
+function placeNewBlock(category, item, target, opts){
+  opts = opts || {};
   const zs = zoneState();
   const w = (item.size && item.size.w) || 1;
   pushUndo();
@@ -944,25 +998,106 @@ function placeNewBlock(category, item, target){
     row:target.row, col:target.col, w, h:1, fixed:!!item.fixed,
   };
   zs.blocks.push(nb);
+  lastAddedId = nb.id;
   // 배치 후 편집 팝업을 바로 열지 않음 (팝업이 팔레트를 가려 연달아 배치하기 어려움) — 편집은 공간을 탭하면 열림
-  selectedId = null;
-  selectedBlank = null; multiSelect = [];
+  selectedId = null; multiSelect = [];
+  selectedBlank = null;
+  if(opts.advance){
+    for(let c = nb.col + w; c < zs.cols; c++){
+      if(!findBlockAt(zs, nb.row, c)){ selectedBlank = {row:nb.row, col:c}; break; }
+    }
+  }
   renderCanvas();
   toastUndo(`'${nb.name}'을(를) ${floorLabelText(currentZone, zs.floors[nb.row])}에 배치했어요.`);
 }
 
+// 팔레트 탭: 빈 칸이 골라져 있으면 바로 그 칸에, 아니면 '놓을 칸 고르기' 모드로 전환
 function addBlockFromPalette(category, item){
   const zs = zoneState();
   const w = (item.size && item.size.w) || 1;
-  let target = null;
-  if(selectedBlank && rectFree(zs, selectedBlank.row, selectedBlank.col, w, 1)){
-    target = selectedBlank;
-  } else {
-    if(selectedBlank) toast(`선택한 빈 칸에 폭 ${w}칸 공간이 들어가지 않아 다른 빈 자리에 배치했어요.`);
-    target = findFirstFreeCell(zs, w);
+  if(selectedBlank){
+    const start = fitStartCol(zs, selectedBlank.row, selectedBlank.col, w);
+    if(start !== null){ placeNewBlock(category, item, {row:selectedBlank.row, col:start}, {advance:true}); return; }
+    toast(`선택한 빈 칸에는 폭 ${w}칸 공간이 들어가지 않아요. 다른 빈 칸을 눌러 주세요.`);
   }
-  if(!target){ alert("현재 동에 배치할 빈 공간이 없습니다. 다른 블록의 크기를 줄이거나 삭제하거나, 여유 칸(+)을 늘린 뒤 다시 시도해 주세요."); return; }
-  placeNewBlock(category, item, target);
+  if(pendingMode && pendingMode.type === "place" && pendingMode.cat === category && pendingMode.item.name === item.name){
+    setMode(null); return; // 같은 버튼을 다시 누르면 모드 끄기
+  }
+  if(!findFirstFreeCell(zs, w)){ alert("현재 동에 이 공간이 들어갈 빈 자리가 없습니다. 다른 공간의 크기를 줄이거나 삭제하거나, 가로 칸(+)을 늘린 뒤 다시 시도해 주세요."); return; }
+  selectedId = null; selectedBlank = null; multiSelect = [];
+  setMode({type:"place", cat:category, item});
+}
+
+// 누른 칸(col)을 포함하면서 폭 w가 들어가는 시작 열을 찾음 (없으면 null)
+function fitStartCol(zs, row, col, w, ignoreId){
+  for(let c = col; c >= Math.max(0, col - w + 1); c--){
+    if(rectFree(zs, row, c, w, 1, ignoreId)) return c;
+  }
+  return null;
+}
+
+/* ---- 탭 배치 / 탭 옮기기 모드 ---- */
+function setMode(m){
+  pendingMode = m;
+  renderModeBar();
+  renderCanvas();
+}
+function renderModeBar(){
+  const bar = document.getElementById("modeBar");
+  document.querySelectorAll(".sidebarBtn.armed").forEach(el=> el.classList.remove("armed"));
+  if(!pendingMode){ bar.classList.add("hidden"); bar.classList.remove("flex"); return; }
+  bar.classList.remove("hidden"); bar.classList.add("flex");
+  const msg = document.getElementById("modeMsg");
+  const done = document.getElementById("modeDone");
+  if(pendingMode.type === "place"){
+    msg.textContent = `'${pendingMode.item.name}' → 놓을 빈 칸 누르기`;
+    done.textContent = "완료";
+    const btn = paletteRoot.querySelector(`[data-key="${CSS.escape(pendingMode.cat + "|" + pendingMode.item.name)}"]`);
+    if(btn) btn.classList.add("armed");
+  } else {
+    const b = zoneState().blocks.find(x=> x.id === pendingMode.id);
+    msg.textContent = `'${b ? b.name : "공간"}' → 옮길 칸 누르기`;
+    done.textContent = "취소";
+  }
+}
+function startMoveMode(id){
+  selectedId = null; selectedBlank = null; multiSelect = [];
+  setMode({type:"move", id});
+}
+// 모드 중에 빈 칸(row,col)이나 공간(target)을 눌렀을 때
+function handleModeTap(row, col, target){
+  const zs = zoneState();
+  if(pendingMode.type === "place"){
+    if(target){ toast("이미 공간이 있는 칸이에요. 점선 빈 칸을 눌러 주세요."); return; }
+    const w = (pendingMode.item.size && pendingMode.item.size.w) || 1;
+    const start = fitStartCol(zs, row, col, w);
+    if(start === null){ toast(`여기에는 폭 ${w}칸 공간이 들어가지 않아요.`); return; }
+    placeNewBlock(pendingMode.cat, pendingMode.item, {row, col:start});
+    return;
+  }
+  const b = zs.blocks.find(x=> x.id === pendingMode.id);
+  if(!b){ setMode(null); return; }
+  if(target && target.id === b.id){ setMode(null); return; } // 자기 자신을 누르면 취소
+  if(target){
+    const res = evaluateDrop(zs, b, target.row, target.col);
+    if(res.kind !== "swap"){ toast("크기가 같고 고정되지 않은 공간끼리만 맞바꿀 수 있어요."); return; }
+    pushUndo();
+    res.other.row = b.row; res.other.col = b.col;
+    b.row = target.row; b.col = target.col;
+    lastAddedId = b.id;
+    pendingMode = null; renderModeBar();
+    renderCanvas();
+    toastUndo(`'${b.name}' ↔ '${res.other.name}' 위치를 맞바꿨어요.`);
+    return;
+  }
+  const start = fitStartCol(zs, row, col, b.w, b.id);
+  if(start === null){ toast(`여기에는 폭 ${b.w}칸 공간이 들어가지 않아요.`); return; }
+  pushUndo();
+  b.row = row; b.col = start;
+  lastAddedId = b.id;
+  pendingMode = null; renderModeBar();
+  renderCanvas();
+  toastUndo(`'${b.name}'을(를) ${floorLabelText(currentZone, zs.floors[row])}으로 옮겼어요.`);
 }
 
 /* =========================================================
@@ -1055,12 +1190,13 @@ function renderCanvas(opts){
       if(findBlockAt(zs, r, c)) continue;
       const cell = document.createElement("div");
       const isSel = selectedBlank && selectedBlank.row===r && selectedBlank.col===c;
-      cell.className = "blankCell" + (isSel ? " blankSelected" : "");
+      cell.className = "blankCell" + (isSel ? " blankSelected" : "") + (pendingMode ? " target" : "");
       cell.style.left = (c*CELL_W+2) + "px";
       cell.style.top = (r*CELL_H+2) + "px";
       cell.style.width = (CELL_W-6) + "px";
       cell.style.height = (CELL_H-6) + "px";
       cell.addEventListener("click", ()=>{
+        if(pendingMode){ handleModeTap(r, c, null); return; }
         selectedBlank = {row:r, col:c};
         selectedId = null; multiSelect = [];
         renderCanvas();
@@ -1073,6 +1209,9 @@ function renderCanvas(opts){
   const realMap = diffMode ? realLayoutLookup(currentZone) : null;
   const q = searchQuery;
   let changedCount = 0;
+  const movingId = pendingMode && pendingMode.type === "move" ? pendingMode.id : null;
+  const movingB = movingId ? zs.blocks.find(x=> x.id === movingId) : null;
+  if(highlightCat && !zs.blocks.some(b=> b.category === highlightCat)) highlightCat = null;
   zs.blocks.forEach(b=>{
     const meta = CATEGORY_META[b.category] || CATEGORY_META.common;
     const div = document.createElement("div");
@@ -1085,6 +1224,10 @@ function renderCanvas(opts){
       + (isMulti?" multiSelected":"")
       + (changed?" changedBlock":"")
       + (q ? (hit ? " searchHit" : " searchDim") : "")
+      + (highlightCat && b.category !== highlightCat ? " catDim" : "")
+      + (b.id === movingId ? " moving" : "")
+      + (movingB && b.id !== movingId && !b.fixed && b.w === movingB.w ? " swapTarget" : "")
+      + (b.id === lastAddedId ? " popIn" : "")
       + (b.fixed?" fixedBlock":"");
     div.style.left = (b.col*CELL_W+2) + "px";
     div.style.top = (b.row*CELL_H+2) + "px";
@@ -1112,13 +1255,44 @@ function renderCanvas(opts){
     div.addEventListener("pointerdown", ev=> startDrag(ev, b));
     canvasEl.appendChild(div);
   });
+  lastAddedId = null;
 
   updateDiffButton(changedCount);
-  renderList(zs);
-  renderDiffSummary(zs);
+  renderLegend(zs);
+  renderEmptyState(zs);
+  // 리스트·통계는 '배치 리스트 · 도구' 창이 열려 있을 때만 계산 (평소 조작을 가볍게)
+  if(!document.getElementById("managePopup").classList.contains("hidden")){
+    renderList(zs);
+    renderDiffSummary(zs);
+    renderGlobalStat();
+  }
   if(!opts.skipEditPanel) renderEditPanel();
-  renderGlobalStat();
   scheduleSave();
+}
+
+/* ---- 카테고리 범례: 누르면 그 카테고리만 강조 ---- */
+function renderLegend(zs){
+  const bar = document.getElementById("legendBar");
+  const counts = {};
+  zs.blocks.forEach(b=>{ counts[b.category] = (counts[b.category]||0) + 1; });
+  const cats = Object.keys(CATEGORY_META).filter(k=> counts[k]);
+  bar.classList.toggle("hidden", cats.length === 0);
+  bar.innerHTML = cats.map(k=>{
+    const m = CATEGORY_META[k];
+    return `<button class="legendChip${highlightCat===k?" on":""}" data-cat="${k}" title="${esc(m.label)} — 눌러서 강조">
+      <span class="swatch" style="background:${m.color};border-color:${m.border}"></span>${esc(m.short)} ${counts[k]}</button>`;
+  }).join("");
+  bar.querySelectorAll(".legendChip").forEach(el=>{
+    el.onclick = ()=>{ highlightCat = highlightCat === el.dataset.cat ? null : el.dataset.cat; renderCanvas({skipEditPanel:true}); };
+  });
+}
+
+/* ---- 빈 동 시작 안내 ---- */
+function renderEmptyState(zs){
+  const box = document.getElementById("emptyState");
+  const show = zs.blocks.length === 0 && !dismissedEmpty.has(currentZone) && !pendingMode;
+  box.classList.toggle("hidden", !show);
+  if(show) document.getElementById("emptyTitle").textContent = `${ZONE_META[currentZone].name}이(가) 비어 있어요`;
 }
 
 /* ---- 드래그 이동 (동일 동 내 임의 위치로 이동, 다른 층 행으로도 이동 가능) — 마우스/터치 공용 포인터 이벤트 ---- */
@@ -1133,7 +1307,9 @@ function startDrag(ev, block){
     return;
   }
   // 터치: 그냥 밀면 배치도 화면 이동, 잠깐 꾹 누르면(약 0.3초) 공간이 들려서 끌어 이동 — 마우스는 바로 드래그
+  // 배치/옮기기 모드 중에는 끌기 없이 '누르기'만 받음 (밀면 화면 이동)
   const isTouch = ev.pointerType === "touch";
+  const modeTap = !!pendingMode;
   ev.preventDefault();
   const zs = zoneState();
   const startX = ev.clientX, startY = ev.clientY;
@@ -1142,7 +1318,7 @@ function startDrag(ev, block){
   const r0 = canvasEl.getBoundingClientRect();
   const grabX = startX - r0.left - startLeft, grabY = startY - r0.top - startTop;
   let moved = false;
-  let armed = !isTouch;
+  let armed = !isTouch && !modeTap;
   let cancelled = false;
   let panning = false;
   const el = canvasEl.querySelector(`[data-id="${block.id}"]`);
@@ -1151,7 +1327,7 @@ function startDrag(ev, block){
   let lastE = ev;
   const startScrollL = canvasWrapEl.scrollLeft, startScrollT = canvasWrapEl.scrollTop;
 
-  if(isTouch){
+  if(isTouch && !modeTap){
     pressTimer = setTimeout(()=>{
       if(panning || cancelled) return;
       armed = true;
@@ -1228,6 +1404,7 @@ function startDrag(ev, block){
     cleanup();
     if(cancelled) return;
     if(panning) return; // 화면을 밀어 이동한 경우에는 선택하지 않음
+    if(modeTap){ if(pendingMode) handleModeTap(block.row, block.col, block); return; }
     if(moved && !block.fixed){
       const { newRow, newCol } = snapped(e || lastE);
       const res = evaluateDrop(zs, block, newRow, newCol);
@@ -1415,6 +1592,7 @@ document.addEventListener("keydown", ev=>{
     }
     if(ev.key === "a" || ev.key === "A"){
       ev.preventDefault();
+      if(pendingMode){ pendingMode = null; renderModeBar(); }
       multiSelect = zoneState().blocks.filter(b=> !b.fixed).map(b=> b.id);
       selectedId = null; selectedBlank = null;
       renderCanvas();
@@ -1434,6 +1612,7 @@ document.addEventListener("keydown", ev=>{
     return;
   }
   if(ev.key === "Escape"){
+    if(pendingMode){ setMode(null); return; }
     if(!managePopupEl.classList.contains("hidden")){ managePopupEl.classList.add("hidden"); return; }
     if(selectedId || selectedBlank || multiSelect.length>0){
       clearSelection();
@@ -1462,6 +1641,7 @@ function duplicateBlock(id){
   pushUndo();
   const copy = Object.assign({}, b, { id:newId(), row:spot.row, col:spot.col, num:"" });
   zs.blocks.push(copy);
+  lastAddedId = copy.id;
   selectedId = copy.id; selectedBlank = null;
   renderCanvas();
 }
@@ -1522,6 +1702,8 @@ function renderEditPanel(){
   const zs = zoneState();
   const b = zs.blocks.find(x=>x.id===selectedId);
 
+  if(pendingMode){ popup.classList.add("hidden"); return; }
+
   if(multiSelect.length > 0){
     popup.classList.remove("hidden");
     titleEl.textContent = `다중 선택 (${multiSelect.length}개) 편집`;
@@ -1570,72 +1752,77 @@ function renderEditPanel(){
     return;
   }
   popup.classList.remove("hidden");
-  titleEl.textContent = "선택된 공간 편집";
-  const catOptions = Object.entries(CATEGORY_META).map(([k,m])=>
-    `<option value="${k}" ${k===b.category?"selected":""}>${m.label}</option>`).join("");
   const floorTxt = floorLabelText(currentZone, zs.floors[b.row]);
+  titleEl.textContent = `${floorTxt} · ${b.col+1}번째 칸`;
+  const canGrow = !b.fixed && rectFree(zs, b.row, b.col, b.w + 1, b.h, b.id);
+  const catChips = Object.entries(CATEGORY_META).map(([k,m])=>
+    `<button class="catChip${k===b.category?" on":""}" data-cat="${k}" style="background:${m.color};border-color:${m.border}">${esc(m.short)}</button>`).join("");
+  const btnCls = "flex-1 flex flex-col items-center gap-0.5 text-[11px] font-bold rounded-lg py-1.5 disabled:opacity-35";
 
   panel.innerHTML = `
-    <div class="bg-slate-50 rounded-xl p-3 space-y-2">
-      <p class="text-[10.5px] font-semibold text-slate-400">${esc(ZONE_META[currentZone].name)} · ${esc(floorTxt)} · ${b.col+1}번째 칸</p>
-      <label class="block text-[11px] font-bold text-slate-500">이름
-        <input id="editName" type="text" value="${esc(b.name)}" class="mt-1 w-full text-xs border border-slate-200 rounded-lg px-2 py-1.5">
-      </label>
-      <label class="block text-[11px] font-bold text-slate-500">호실 번호
-        <input id="editNum" type="text" value="${esc(b.num||"")}" placeholder="예: 193" class="mt-1 w-full text-xs border border-slate-200 rounded-lg px-2 py-1.5">
-      </label>
-      <label class="block text-[11px] font-bold text-slate-500">카테고리
-        <select id="editCategory" class="mt-1 w-full text-xs border border-slate-200 rounded-lg px-2 py-1.5">${catOptions}</select>
-      </label>
-      <label class="block text-[11px] font-bold text-slate-500">폭(가로 칸수) · <span id="editAreaTxt">${b.w*UNIT_AREA}</span>㎡
-        <input id="editW" type="number" min="1" max="${zs.cols}" value="${b.w}" ${b.fixed?"disabled":""} class="mt-1 w-full text-xs border border-slate-200 rounded-lg px-2 py-1.5 disabled:bg-slate-100">
-      </label>
-      <label class="block text-[11px] font-bold text-slate-500">메모
-        <textarea id="editNote" rows="2" placeholder="예: 채광이 안 좋음, 방음 보강 필요 등" class="mt-1 w-full text-xs border border-slate-200 rounded-lg px-2 py-1.5 resize-none">${esc(b.note||"")}</textarea>
-      </label>
-      <label class="flex items-center gap-1.5 text-[11px] font-bold text-slate-500 pt-1">
-        <input id="editFixed" type="checkbox" ${b.fixed?"checked":""}> 이동/면적조정 금지(고정)
-      </label>
-      <div class="flex gap-1.5 pt-1">
-        <button id="editDuplicate" class="flex-1 text-xs font-bold bg-slate-100 text-slate-600 rounded-lg py-1.5 hover:bg-slate-200 disabled:opacity-40" ${b.fixed?"disabled":""}>복제 (Ctrl+D)</button>
-        <button id="editSplit" class="flex-1 text-xs font-bold bg-slate-100 text-slate-600 rounded-lg py-1.5 hover:bg-slate-200 disabled:opacity-40" ${(b.w<2||b.fixed)?"disabled":""}>분할</button>
-        <button id="editDelete" class="flex-1 text-xs font-bold bg-rose-50 text-rose-500 rounded-lg py-1.5 hover:bg-rose-100">삭제</button>
+    <div class="space-y-2.5">
+      <input id="editName" type="text" value="${esc(b.name)}" placeholder="공간 이름" class="w-full text-sm font-bold border border-slate-200 rounded-lg px-2.5 py-1.5">
+      <div class="flex flex-wrap gap-1" id="catChips">${catChips}</div>
+      <div class="flex items-center justify-between bg-slate-50 rounded-lg px-2.5 py-1.5">
+        <span class="text-[11px] font-bold text-slate-500">크기</span>
+        <div class="flex items-center gap-2">
+          <button id="wMinus" class="w-8 h-8 rounded-lg bg-white border border-slate-200 text-base font-bold text-slate-600 disabled:opacity-35" ${(b.fixed||b.w<=1)?"disabled":""}>−</button>
+          <span class="text-xs font-extrabold text-slate-700 min-w-[72px] text-center">${b.w}칸 · ${b.w*UNIT_AREA}㎡</span>
+          <button id="wPlus" class="w-8 h-8 rounded-lg bg-white border border-slate-200 text-base font-bold text-slate-600 disabled:opacity-35" ${canGrow?"":"disabled"}>+</button>
+        </div>
       </div>
-      <p class="text-[10.5px] text-slate-400 leading-snug pt-1">오른쪽 손잡이 드래그: 면적 조정 · Shift+클릭: 옆 공간과 병합 · 분할: 병합된 공간을 1칸씩 나눔 · 방향키: 한 칸 이동</p>
-    </div>
-
-    <div class="bg-indigo-50 rounded-xl p-3 mt-2 space-y-1.5">
-      <p class="text-[11px] font-extrabold text-indigo-600">호실 번호 연속 적용</p>
-      <div class="flex gap-1">
-        <input id="seqStart" type="text" placeholder="시작 번호 (예: 193)" class="flex-1 min-w-0 text-xs border border-indigo-200 rounded-lg px-2 py-1.5">
-        <input id="seqCount" type="number" min="1" placeholder="개수" class="w-14 text-xs border border-indigo-200 rounded-lg px-2 py-1.5">
-        <button id="seqApply" class="text-xs font-bold bg-indigo-600 text-white px-2.5 rounded-lg hover:bg-indigo-700 flex-shrink-0">적용</button>
+      <div class="flex gap-1.5">
+        <button id="editMove" class="${btnCls} bg-emerald-50 text-emerald-700" ${b.fixed?"disabled":""}><span class="text-base leading-none">⇄</span>옮기기</button>
+        <button id="editDuplicate" class="${btnCls} bg-slate-100 text-slate-600" ${b.fixed?"disabled":""}><span class="text-base leading-none">⧉</span>복제</button>
+        <button id="editSplit" class="${btnCls} bg-slate-100 text-slate-600" ${(b.w<2||b.fixed)?"disabled":""}><span class="text-base leading-none">⫼</span>분할</button>
+        <button id="editDelete" class="${btnCls} bg-rose-50 text-rose-500"><span class="text-base leading-none">✕</span>삭제</button>
       </div>
-      <p class="text-[10.5px] text-indigo-400 leading-snug">선택된 공간부터 같은 층에서 오른쪽으로 1씩 증가하며 번호가 매겨집니다(계단·화장실 등 고정 공간은 건너뜀). 개수를 비워두면 그 층 끝까지 적용돼요.</p>
+      <details id="editMore" class="bg-slate-50 rounded-lg px-2.5 py-1.5" ${editMoreOpen?"open":""}>
+        <summary class="text-[11px] font-bold text-slate-500 cursor-pointer select-none">더보기 · 호실 번호, 메모, 고정${b.num?` <span class="text-slate-400">#${esc(b.num)}</span>`:""}${(b.note&&b.note.trim())?' <span class="text-slate-400">· 메모 있음</span>':""}</summary>
+        <div class="space-y-2 pt-2">
+          <label class="block text-[11px] font-bold text-slate-500">호실 번호
+            <input id="editNum" type="text" value="${esc(b.num||"")}" placeholder="예: 193" class="mt-1 w-full text-xs border border-slate-200 rounded-lg px-2 py-1.5">
+          </label>
+          <label class="block text-[11px] font-bold text-slate-500">메모
+            <textarea id="editNote" rows="2" placeholder="예: 채광이 안 좋음, 방음 보강 필요 등" class="mt-1 w-full text-xs border border-slate-200 rounded-lg px-2 py-1.5 resize-none">${esc(b.note||"")}</textarea>
+          </label>
+          <label class="flex items-center gap-1.5 text-[11px] font-bold text-slate-500">
+            <input id="editFixed" type="checkbox" ${b.fixed?"checked":""}> 이동·크기조정 금지(고정)
+          </label>
+          <div class="border-t border-slate-200 pt-2">
+            <p class="text-[11px] font-bold text-slate-500 mb-1">호실 번호 연속 매기기 <span class="font-normal text-slate-400">(이 공간부터 오른쪽으로, 고정 공간 제외)</span></p>
+            <div class="flex gap-1">
+              <input id="seqStart" type="text" inputmode="numeric" placeholder="시작 번호" class="flex-1 min-w-0 text-xs border border-slate-200 rounded-lg px-2 py-1.5">
+              <input id="seqCount" type="number" min="1" placeholder="개수" class="w-16 text-xs border border-slate-200 rounded-lg px-2 py-1.5">
+              <button id="seqApply" class="text-xs font-bold bg-indigo-600 text-white px-2.5 rounded-lg hover:bg-indigo-700 flex-shrink-0">적용</button>
+            </div>
+          </div>
+        </div>
+      </details>
+      <p class="hidden sm:block text-[10.5px] text-slate-400 leading-snug">오른쪽 손잡이 드래그: 크기 조정 · Shift+클릭: 옆 공간과 병합 · 방향키: 한 칸 이동 · Ctrl+D: 복제</p>
     </div>
   `;
 
   let editUndoArmed = false;
   function armUndoOnce(){ if(!editUndoArmed){ pushUndo(); editUndoArmed = true; } }
 
+  document.getElementById("editMore").addEventListener("toggle", e=>{ editMoreOpen = e.target.open; });
   document.getElementById("editName").addEventListener("focus", armUndoOnce);
   document.getElementById("editName").oninput = e=>{ b.name = e.target.value; renderCanvas({skipEditPanel:true}); };
   document.getElementById("editNum").addEventListener("focus", armUndoOnce);
   document.getElementById("editNum").oninput = e=>{ b.num = e.target.value; renderCanvas({skipEditPanel:true}); };
   document.getElementById("editNote").addEventListener("focus", armUndoOnce);
   document.getElementById("editNote").oninput = e=>{ b.note = e.target.value; renderCanvas({skipEditPanel:true}); };
-  document.getElementById("editCategory").onchange = e=>{ pushUndo(); b.category = e.target.value; renderCanvas(); };
-  document.getElementById("editW").onchange = e=>{
-    const want = Math.max(1, parseInt(e.target.value,10)||1);
-    let w = want;
-    while(w > 1 && !rectFree(zs, b.row, b.col, w, b.h, b.id)) w--;
-    if(w < want) toast(`옆 칸이 차 있어서 폭을 ${w}칸까지만 늘렸어요.`);
-    if(w === b.w){ e.target.value = w; return; }
-    pushUndo();
-    b.w = w;
-    renderCanvas();
+  panel.querySelectorAll(".catChip").forEach(el=>{
+    el.onclick = ()=>{ if(el.dataset.cat === b.category) return; pushUndo(); b.category = el.dataset.cat; renderCanvas(); };
+  });
+  document.getElementById("wMinus").onclick = ()=>{ if(b.w <= 1) return; pushUndo(); b.w--; renderCanvas(); };
+  document.getElementById("wPlus").onclick = ()=>{
+    if(!rectFree(zs, b.row, b.col, b.w + 1, b.h, b.id)){ toast("오른쪽 칸이 차 있어서 더 넓힐 수 없어요."); return; }
+    pushUndo(); b.w++; renderCanvas();
   };
   document.getElementById("editFixed").onchange = e=>{ pushUndo(); b.fixed = e.target.checked; renderCanvas(); };
+  document.getElementById("editMove").onclick = ()=> startMoveMode(b.id);
   document.getElementById("editDuplicate").onclick = ()=> duplicateBlock(b.id);
   document.getElementById("editSplit").onclick = ()=> splitBlock(b.id);
   document.getElementById("editDelete").onclick = ()=> deleteBlock(b.id);
@@ -1651,7 +1838,7 @@ function renderEditPanel(){
     pushUndo();
     rowBlocks.forEach((blk,i)=>{ blk.num = String(startNum + i); });
     renderCanvas();
-    toast(`${rowBlocks.length}개 공간에 ${startNum}~${startNum+rowBlocks.length-1}번을 매겼어요.`);
+    toastUndo(`${rowBlocks.length}개 공간에 ${startNum}~${startNum+rowBlocks.length-1}번을 매겼어요.`);
   };
 }
 
@@ -1678,6 +1865,7 @@ function renderList(zs){
     `;
     li.onclick = ()=>{
       selectedId = b.id; selectedBlank = null; multiSelect = [];
+      if(pendingMode){ pendingMode = null; renderModeBar(); }
       if(isNarrow()) managePopupEl.classList.add("hidden");
       renderCanvas();
       scrollBlockIntoView(b.id);
@@ -1757,6 +1945,14 @@ function renderGlobalStat(){
 /* =========================================================
    10. 상단 유틸리티 - 실제배치 재설정 / 초기화 / 저장 / 이미지 / 실행취소 / 검색 / 시나리오 / CSV
 ========================================================= */
+document.getElementById("modeDone").onclick = ()=> setMode(null);
+document.getElementById("emptyLoadReal").onclick = ()=> document.getElementById("btnLoadReal").click();
+document.getElementById("emptyStartBlank").onclick = ()=>{
+  dismissedEmpty.add(currentZone);
+  renderCanvas();
+  toast("아래 팔레트에서 공간을 누른 뒤, 놓을 빈 칸을 누르세요.");
+};
+
 document.getElementById("btnLoadReal").onclick = ()=>{
   if(zoneState().blocks.length>0){
     if(!confirm(`${ZONE_META[currentZone].name}의 현재 배치를 지우고 2026학년도 교사 배치도 기준으로 되돌릴까요? (실행취소 가능)`)) return;
@@ -1841,8 +2037,31 @@ function legendHtml(){
        <span style="width:11px;height:11px;border-radius:3px;background:${m.color};border:1.5px solid ${m.border};display:inline-block;"></span>${m.label}
      </span>`).join("");
 }
+// 이미지 저장 라이브러리(약 200KB)는 처음 저장할 때만 내려받아 첫 화면을 가볍게 함
+let h2cPromise = null;
+function loadHtml2canvas(){
+  if(typeof window.html2canvas === "function") return Promise.resolve();
+  if(!h2cPromise){
+    h2cPromise = new Promise((resolve, reject)=>{
+      const sc = document.createElement("script");
+      sc.src = "https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js";
+      sc.onload = resolve;
+      sc.onerror = ()=>{ h2cPromise = null; sc.remove(); reject(new Error("이미지 저장 기능을 불러오지 못했습니다. 인터넷 연결을 확인해 주세요.")); };
+      document.head.appendChild(sc);
+    });
+  }
+  return h2cPromise;
+}
 document.getElementById("btnExportImg").onclick = ()=>{
-  if(typeof html2canvas !== "function"){ alert("이미지 저장 라이브러리를 불러오지 못했습니다. 인터넷 연결을 확인해 주세요."); return; }
+  const btn = document.getElementById("btnExportImg");
+  if(btn.disabled) return;
+  btn.disabled = true; btn.textContent = "준비 중…";
+  loadHtml2canvas().then(exportImage).catch(err=>{
+    alert(err.message);
+    btn.disabled = false; btn.textContent = "이미지 저장";
+  });
+};
+function exportImage(){
   const sectionEl = document.getElementById("canvasSection");
   const wrapH = canvasWrapEl.offsetHeight;
   // 모바일에서 가로 스크롤로 가려진 부분까지 모두 저장되도록 전체 폭 계산
@@ -1850,8 +2069,10 @@ document.getElementById("btnExportImg").onclick = ()=>{
   const wideW = Math.max(sectionEl.offsetWidth, fullW);
   const btn = document.getElementById("btnExportImg");
   btn.disabled = true; btn.textContent = "저장 중…";
-  // 선택 표시가 이미지에 남지 않도록 잠시 해제
+  // 선택·검색·강조 표시가 이미지에 남지 않도록 잠시 해제
   const prevSel = selectedId, prevBlank = selectedBlank, prevMulti = multiSelect.slice();
+  const prevCat = highlightCat, prevQuery = searchQuery;
+  highlightCat = null; searchQuery = "";
   clearSelection();
   renderCanvas({skipEditPanel:true});
   html2canvas(sectionEl, {
@@ -1885,6 +2106,7 @@ document.getElementById("btnExportImg").onclick = ()=>{
   }).finally(()=>{
     btn.disabled = false; btn.textContent = "이미지 저장";
     selectedId = prevSel; selectedBlank = prevBlank; multiSelect = prevMulti;
+    highlightCat = prevCat; searchQuery = prevQuery;
     renderCanvas();
   });
 };
