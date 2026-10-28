@@ -407,7 +407,7 @@ const PALETTE = [
   { key:"admin",     items:[ {name:"행정실", seq:true} ]},
   // 보건실습실(간호·요양 실습)과 학생 치료용 보건실(양호실)을 구분 — 양호실은 보통 하나라 번호 없이
   { key:"health",    items:[ {name:"보건실습실", seq:true}, {name:"보건실(양호실)"} ]},
-  { key:"common",    items:[ {name:"공용실", seq:true} ]},
+  { key:"common",    items:[ {name:"공용실", seq:true}, {name:"공실(빈 공간)"} ]},
 ];
 
 /* =========================================================
@@ -1658,6 +1658,42 @@ function mergeBlocks(a, b){
   return true;
 }
 
+/* ---- 빈 칸 끼워 넣기 / 없애기 ----
+   선택한 공간부터 오른쪽으로 이어 붙은 공간들(다음 빈 칸 전까지)을 한 칸씩 밀거나 당김.
+   층 끝까지 꽉 차 있으면 가로 칸을 하나 늘림. */
+function rowRunFrom(zs, row, col){
+  const run = [];
+  let c = col;
+  while(c < zs.cols){
+    const x = findBlockAt(zs, row, c);
+    if(!x) break;
+    run.push(x);
+    c = x.col + x.w;
+  }
+  return { run, end: c };
+}
+function insertGapLeft(b){
+  const zs = zoneState();
+  const { run, end } = rowRunFrom(zs, b.row, b.col);
+  if(end >= zs.cols && zs.cols >= MAX_COLS){ toast("가로 칸이 최대라 더 밀 수 없어요."); return; }
+  pushUndo();
+  if(end >= zs.cols) zs.cols++;
+  run.forEach(x=>{ x.col++; });
+  selectedId = b.id;
+  renderCanvas();
+  toastUndo(`'${b.name}' 왼쪽에 빈 칸을 끼워 넣었어요.` + (run.length > 1 ? ` (${run.length}개 공간이 밀림)` : ""));
+}
+function removeGapLeft(b){
+  const zs = zoneState();
+  if(b.col === 0 || findBlockAt(zs, b.row, b.col - 1)){ toast("왼쪽 칸이 비어 있지 않아요."); return; }
+  const { run } = rowRunFrom(zs, b.row, b.col);
+  pushUndo();
+  run.forEach(x=>{ x.col--; });
+  selectedId = b.id;
+  renderCanvas();
+  toastUndo(`왼쪽 빈 칸을 없앴어요.` + (run.length > 1 ? ` (${run.length}개 공간이 당겨짐)` : ""));
+}
+
 /* ---- 분할: 폭이 2칸 이상인 공간을 1칸짜리 공간들로 나눔 (병합의 반대) ---- */
 function splitBlock(id){
   const zs = zoneState();
@@ -1998,6 +2034,11 @@ function renderEditPanel(){
         <button id="editSplit" class="${btnCls} bg-slate-100 text-slate-600" ${(b.w<2||b.fixed)?"disabled":""}><span class="text-base leading-none">⫼</span>분할</button>
         <button id="editDelete" class="${btnCls} bg-rose-50 text-rose-500"><span class="text-base leading-none">✕</span>삭제</button>
       </div>
+      <div class="flex items-center gap-1.5 bg-slate-50 rounded-lg px-2.5 py-1.5">
+        <span class="text-[11px] font-bold text-slate-500 flex-1 leading-tight">왼쪽에 빈 칸<br><span class="font-normal text-[10px] text-slate-400">오른쪽 공간들이 함께 밀리고 당겨져요</span></span>
+        <button id="gapAdd" class="px-2.5 py-1.5 rounded-lg bg-white border border-slate-200 text-[11px] font-bold text-slate-600">＋ 끼워 넣기</button>
+        <button id="gapRemove" class="px-2.5 py-1.5 rounded-lg bg-white border border-slate-200 text-[11px] font-bold text-slate-600 disabled:opacity-35" ${(b.col>0 && !findBlockAt(zs, b.row, b.col-1))?"":"disabled"}>－ 없애기</button>
+      </div>
       <details id="editMore" class="bg-slate-50 rounded-lg px-2.5 py-1.5" ${editMoreOpen?"open":""}>
         <summary class="text-[11px] font-bold text-slate-500 cursor-pointer select-none">더보기 · 호실 번호, 메모, 고정${b.num?` <span class="text-slate-400">#${esc(b.num)}</span>`:""}${(b.note&&b.note.trim())?' <span class="text-slate-400">· 메모 있음</span>':""}</summary>
         <div class="space-y-2 pt-2">
@@ -2047,6 +2088,8 @@ function renderEditPanel(){
   document.getElementById("editDuplicate").onclick = ()=> duplicateBlock(b.id);
   document.getElementById("editSplit").onclick = ()=> splitBlock(b.id);
   document.getElementById("editDelete").onclick = ()=> deleteBlock(b.id);
+  document.getElementById("gapAdd").onclick = ()=> insertGapLeft(b);
+  document.getElementById("gapRemove").onclick = ()=> removeGapLeft(b);
   document.getElementById("seqApply").onclick = ()=>{
     const startNum = parseInt(document.getElementById("seqStart").value.trim(), 10);
     if(isNaN(startNum)){ alert("시작 번호를 숫자로 입력해 주세요. 예: 193"); return; }
@@ -2576,7 +2619,10 @@ async function shareLayout(st, title){
   const out = document.getElementById("shareLinkOut");
   let url;
   try{
-    url = location.href.split("#")[0] + "#share=" + await encodeShare({ t: title || "", z: packState(st) });
+    // 받는 사람 팔레트에도 '내 공간' 버튼이 생기도록 함께 담음
+    const payload = { t: title || "", z: packState(st) };
+    if(customPalette.length) payload.p = customPalette.map(c=> [Math.max(0, CAT_KEYS.indexOf(c.cat)), c.name]);
+    url = location.href.split("#")[0] + "#share=" + await encodeShare(payload);
   }catch(err){ alert("공유 링크를 만들지 못했어요: " + err.message); return; }
   out.value = url; out.classList.remove("hidden");
   const shareTitle = "덕영고 공간 배치" + (title ? ` - ${title}` : "");
@@ -2606,6 +2652,11 @@ async function openSharedFromHash(){
     const hadWork = Object.values(state).some(zs=> zs.blocks.length > 0);
     if(hadWork) scenarios[`내 이전 배치 (${nowStamp()})`] = JSON.parse(JSON.stringify(state));
     scenarios[`${title} (공유받음 ${nowStamp()})`] = JSON.parse(JSON.stringify(shared));
+    let addedPal = 0;
+    (Array.isArray(obj.p) ? obj.p : []).forEach(a=>{
+      const c = normalizeCustomPalette([{ cat: CAT_KEYS[a[0]], name: a[1] }])[0];
+      if(c && !customPalette.some(x=> x.cat === c.cat && x.name === c.name)){ customPalette.push(c); addedPal++; }
+    });
     pushUndo();
     state = shared;
     syncIdSeq();
@@ -2614,7 +2665,9 @@ async function openSharedFromHash(){
     if(firstZone) currentZone = firstZone;
     renderAll();
     renderScenarioList();
-    toast((obj.t ? `공유받은 배치 '${title}'을(를) 열었어요.` : "공유받은 배치를 열었어요.") + (hadWork ? " 내 이전 작업은 '저장 · 공유'에 보관했어요." : ""));
+    toast((obj.t ? `공유받은 배치 '${title}'을(를) 열었어요.` : "공유받은 배치를 열었어요.")
+      + (addedPal ? ` 팔레트 '내 공간'에 ${addedPal}개가 추가됐어요.` : "")
+      + (hadWork ? " 내 이전 작업은 '저장 · 공유'에 보관했어요." : ""));
   }catch(err){
     alert("공유 링크를 열지 못했어요. 링크가 잘렸는지 확인해 주세요.\n(" + err.message + ")");
   }
