@@ -204,6 +204,7 @@
     <button id="btnMore" class="flex-shrink-0 px-2 py-1 rounded-md text-[11px] font-bold bg-slate-100 text-slate-600 hover:bg-slate-200" aria-haspopup="true">더보기 ▾</button>
     <div id="moreItems" class="moreMenu hidden">
       <button id="btnExportImg" class="moreItem">이미지 저장</button>
+      <button id="btnLoadAgreed" class="moreItem">협의안(기본)으로 되돌리기</button>
       <button id="btnLoadReal" class="moreItem">2026 실제 배치로 재설정</button>
       <button id="btnResetZone" class="moreItem">현재 동 비우기</button>
       <button id="btnResetAll" class="moreItem text-rose-600">전체 초기화</button>
@@ -513,6 +514,146 @@ const FLOORS_BY_ZONE = {
   D: [6,5,4,3,2,1,-1],
 };
 const FLOOR_LABEL_OVERRIDES = {};
+
+/* 협의된 기본 배치(1차 협의안) — 새 화면과 '협의안으로 되돌리기'의 기준. [층행, 칸, 너비, 이름, 호실, 구분, 고정, 메모] */
+const AGREED_DATA = {
+  C: { cols:15, floors:[6, 5, 4, 3, 2, 1], b:[
+    [0, 0, 1, "기자재실", "196", "facility", 1],
+    [0, 1, 1, "계단", "", "fixed", 1],
+    [0, 2, 1, "컴사부 교무실(5)", "193", "admin", 0],
+    [0, 3, 1, "학습실(탕비실)", "", "common", 0],
+    [0, 4, 2, "SW실습실1", "194", "computer", 0],
+    [0, 6, 2, "SW실습실2", "195", "computer", 0],
+    [0, 8, 2, "SW실습실3", "197", "computer", 0],
+    [0, 10, 2, "SW실습실4", "198", "computer", 0],
+    [0, 12, 1, "계단", "", "fixed", 1],
+    [0, 13, 1, "물탱크실", "159", "facility", 1],
+    [1, 0, 1, "화장실(여)", "", "fixed", 1, "협의 문서에서 노란색으로 표시된 칸"],
+    [1, 1, 1, "계단", "", "fixed", 1],
+    [1, 2, 1, "교정부 교무실(3)", "188", "admin", 0],
+    [1, 3, 1, "학습실(탕비실)", "", "common", 0],
+    [1, 4, 2, "SW실습실5", "189", "computer", 0],
+    [1, 6, 2, "SW실습실6", "190", "computer", 0],
+    [1, 8, 2, "보건실습실1", "191", "health", 0],
+    [1, 10, 2, "보건실습실2", "192", "health", 0],
+    [1, 12, 1, "계단", "", "fixed", 1],
+    [2, 0, 1, "화장실(남)", "", "fixed", 1, "협의 문서에서 노란색으로 표시된 칸"],
+    [2, 1, 1, "계단", "", "fixed", 1],
+    [2, 2, 1, "경영 교무실(5)", "183", "admin", 0],
+    [2, 3, 1, "학습실(탕비실)", "", "common", 0],
+    [2, 4, 2, "경영실습실1", "184", "accounting", 0],
+    [2, 6, 2, "경영실습실2", "185", "accounting", 0],
+    [2, 8, 2, "경영실습실3", "186", "accounting", 0],
+    [2, 10, 2, "멀티미디어실", "187", "design", 0],
+    [2, 12, 1, "계단", "", "fixed", 1],
+    [3, 0, 1, "화장실(여)", "", "fixed", 1, "협의 문서에서 노란색으로 표시된 칸"],
+    [3, 1, 1, "계단", "", "fixed", 1],
+    [3, 2, 1, "그래픽 교무실(5)", "177", "admin", 0],
+    [3, 3, 1, "학습실(탕비실)", "", "common", 0],
+    [3, 4, 2, "디자인실습실1", "179", "design", 0],
+    [3, 6, 2, "디자인실습실2", "180", "design", 0],
+    [3, 8, 2, "디자인실습실3", "181", "design", 0],
+    [3, 10, 2, "디자인실습실4", "182", "design", 0],
+    [3, 12, 1, "계단", "", "fixed", 1],
+    [4, 0, 0.5, "화장실(여)", "", "fixed", 1],
+    [4, 0.5, 0.5, "화장실(남)", "", "fixed", 1],
+    [4, 1.0, 1, "현관", "", "fixed", 1],
+    [4, 2.0, 2, "메이커스페이스1", "171", "common", 0],
+    [4, 4.0, 2, "메이커스페이스2", "172", "common", 0],
+    [4, 6.0, 2, "전시홀", "173", "common", 0],
+    [4, 8.0, 1, "휴게실 남", "174", "common", 0],
+    [4, 9.0, 1, "휴게실 여", "174", "common", 0],
+    [4, 10.0, 2, "학습실", "175", "common", 0],
+    [4, 12.0, 1, "현관", "", "fixed", 1],
+    [5, 1, 1, "계단", "", "fixed", 1],
+    [5, 2, 3, "세미나실", "166", "common", 0],
+    [5, 5, 1, "현관", "", "fixed", 1],
+    [5, 6, 2, "다목적회의실", "167", "common", 0],
+    [5, 8, 1, "준비실", "168", "common", 0],
+    [5, 9, 2, "DY광장", "169", "common", 0],
+    [5, 11, 1, "현관", "", "fixed", 1],
+    [5, 12, 1, "바리스타실", "170", "special", 0],
+  ]},
+  V: { cols:13, floors:[3, 2, 1, -1], b:[
+    [0, 0, 1, "계단", "", "fixed", 1],
+    [0, 1, 1, "스마트교실", "135", "classroom", 0],
+    [0, 2, 1, "스마트교실", "136", "classroom", 0],
+    [0, 3, 1.5, "스마트교실", "137", "classroom", 0],
+    [0, 4.5, 1, "스마트교실", "138", "classroom", 0],
+    [0, 5.5, 1, "스마트교실", "139", "classroom", 0],
+    [0, 6.5, 1, "스마트교실", "140", "classroom", 0],
+    [0, 7.5, 1, "스마트교실", "141", "classroom", 0],
+    [0, 8.5, 1, "스마트교실", "142", "classroom", 0, "협의 문서에서 파란색으로 표시된 칸"],
+    [0, 9.5, 1, "스마트교실", "143", "classroom", 0, "협의 문서에서 파란색으로 표시된 칸"],
+    [0, 10.5, 1, "계단", "", "fixed", 1],
+    [1, 0, 1, "계단", "", "fixed", 1],
+    [1, 1, 1, "스마트교실", "126", "classroom", 0],
+    [1, 2, 1, "스마트교실", "127", "classroom", 0],
+    [1, 3, 1.5, "스마트교실", "128", "classroom", 0],
+    [1, 4.5, 1, "스마트교실", "129", "classroom", 0],
+    [1, 5.5, 1, "스마트교실", "130", "classroom", 0],
+    [1, 6.5, 1, "스마트교실", "131", "classroom", 0],
+    [1, 7.5, 1, "스마트교실", "132", "classroom", 0],
+    [1, 8.5, 1, "스마트교실", "133", "classroom", 0, "협의 문서에서 파란색으로 표시된 칸"],
+    [1, 9.5, 1, "스마트교실", "134", "classroom", 0, "협의 문서에서 파란색으로 표시된 칸"],
+    [1, 10.5, 1, "계단", "", "fixed", 1],
+    [2, 0, 1, "현관", "", "fixed", 1],
+    [2, 1, 2.5, "본교무실(24)", "113~115", "admin", 0],
+    [2, 3.5, 1, "학부모회의실", "116", "common", 0],
+    [2, 4.5, 1, "교장실", "117", "admin", 0],
+    [2, 5.5, 1, "현관", "", "fixed", 1],
+    [2, 6.5, 0.5, "행정실", "118", "facility", 0],
+    [2, 7.0, 0.5, "행정실", "119", "facility", 0],
+    [2, 7.5, 0.5, "문서고", "120", "facility", 1],
+    [2, 8.0, 0.5, "법인실", "123", "facility", 0],
+    [2, 8.5, 0.5, "법인실", "124", "facility", 0],
+    [2, 9.0, 0.5, "기계설비", "124", "facility", 1],
+    [2, 9.5, 1, "인쇄실(성적처리실)", "124", "facility", 0],
+    [2, 10.5, 1, "시험보관고", "144", "facility", 0, "표에서 이 칸 위쪽 일부는 현관"],
+    [3, 0, 1, "계단", "", "fixed", 1],
+    [3, 1, 2, "메이커스페이스2", "111", "common", 0],
+    [3, 3, 2.5, "스페이스X", "112", "common", 0],
+  ]},
+  W: { cols:9, floors:[5, 4, 3, 2, 1], b:[
+    [0, 0.5, 1, "학폭실", "228", "admin", 0],
+    [0, 1.5, 1, "학생부", "229", "admin", 0],
+    [0, 2.5, 0.5, "계단", "", "fixed", 1],
+    [0, 3.0, 1, "과학실", "230", "special", 0],
+    [0, 4.0, 1, "과학준비실", "231", "special", 0],
+    [0, 5.0, 1, "화장실(여)", "", "fixed", 1],
+    [0, 6.0, 1, "화장실(남)", "", "fixed", 1],
+    [1, 0.5, 1, "스마트교실", "224", "classroom", 0],
+    [1, 1.5, 1, "스마트교실", "225", "classroom", 0],
+    [1, 2.5, 0.5, "계단", "", "fixed", 1],
+    [1, 3.0, 1, "스마트교실", "226", "classroom", 0],
+    [1, 4.0, 1, "위클래스(상담실)", "227", "admin", 0],
+    [1, 5.0, 1, "화장실(여)", "", "fixed", 1],
+    [1, 6.0, 1, "화장실(남)", "", "fixed", 1],
+    [2, 0.5, 1, "스마트교실", "219", "classroom", 0],
+    [2, 1.5, 1, "스마트교실", "220", "classroom", 0],
+    [2, 2.5, 0.5, "계단", "", "fixed", 1],
+    [2, 3.0, 1, "스마트교실", "221,222", "classroom", 0, "협의 문서에서 파란색으로 표시된 칸"],
+    [2, 4.0, 1, "아트랩(미술실)", "223", "design", 0],
+    [2, 5.0, 1, "화장실(여)", "", "fixed", 1, "협의 문서에서 노란색으로 표시된 칸"],
+    [2, 6.0, 1, "화장실(남)", "", "fixed", 1],
+    [3, 0.5, 1, "스마트교실", "215", "classroom", 0],
+    [3, 1.5, 1, "스마트교실", "216", "classroom", 0],
+    [3, 2.5, 0.5, "계단", "", "fixed", 1],
+    [3, 3.0, 1, "스마트교실", "217", "classroom", 0, "협의 문서에서 파란색으로 표시된 칸"],
+    [3, 4.0, 1, "교무실", "218", "admin", 0],
+    [3, 5.0, 1, "화장실(여)", "", "fixed", 1],
+    [3, 6.0, 1, "화장실(남)", "", "fixed", 1],
+    [4, 0, 0.5, "현관", "", "fixed", 1],
+    [4, 0.5, 1, "도서관", "211", "library", 0],
+    [4, 1.5, 1, "도서관", "212", "library", 0],
+    [4, 2.5, 0.5, "현관", "", "fixed", 1],
+    [4, 3.0, 1, "학생자치실", "213", "common", 0],
+    [4, 4.0, 1, "디지털스튜디오", "214", "design", 0],
+    [4, 5.0, 1, "화장실(여)", "", "fixed", 1],
+    [4, 6.0, 1, "화장실(남)", "", "fixed", 1],
+    [4, 7.0, 0.5, "현관", "", "fixed", 1],
+  ]},
+};
 
 const ROOM_DATA = {
   C: {
@@ -852,11 +993,18 @@ function emptyZoneGrid(zone){
   return { rows: floors.length, cols: maxW + GRID_PAD_COLS, blocks: [], floors: floors.slice() };
 }
 
+function agreedZoneGrid(zone){
+  const a = AGREED_DATA[zone];
+  if(!a) return null;
+  return { rows: a.floors.length, cols: a.cols, floors: a.floors.slice(),
+    blocks: a.b.map(r=> ({ id:newId(), row:r[0], col:r[1], w:r[2], h:1, name:r[3], num:r[4], category:r[5], fixed:!!r[6], note:r[7]||"" })) };
+}
+
 function initialState(){
-  // 첫 화면은 실제 배치를 자동으로 채우지 않고, 동 구조(층·칸 배열)만 갖춘 빈 그리드로 시작함.
-  // 실제 2026학년도 배치가 필요하면 상단 "실제 배치로 재설정" 버튼으로 언제든 불러올 수 있음.
+  // 협의된 기본 배치가 있는 동은 그 배치로, 나머지 동은 빈 그리드로 시작함.
+  // 실제 2026학년도 배치가 필요하면 "더보기 → 2026 실제 배치로 재설정"으로 언제든 불러올 수 있음.
   const s = {};
-  Object.keys(ZONE_META).forEach(z=> s[z] = emptyZoneGrid(z));
+  Object.keys(ZONE_META).forEach(z=> s[z] = agreedZoneGrid(z) || emptyZoneGrid(z));
   return s;
 }
 
@@ -2418,6 +2566,18 @@ document.getElementById("btnLoadReal").onclick = async ()=>{
   toastUndo("실제 배치로 재설정했어요.");
 };
 
+document.getElementById("btnLoadAgreed").onclick = async ()=>{
+  if(!AGREED_DATA[currentZone]){ toast(`${ZONE_META[currentZone].name}은 아직 협의안이 없어요.`); return; }
+  if(zoneState().blocks.length>0){
+    if(!(await askConfirm(`${ZONE_META[currentZone].name}의 현재 배치를 지우고 협의안(기본) 배치로 되돌릴까요? (실행취소 가능)` + sharedNote()))) return;
+  }
+  pushUndo();
+  state[currentZone] = agreedZoneGrid(currentZone);
+  clearSelection();
+  renderCanvas();
+  toastUndo("협의안(기본)으로 되돌렸어요.");
+};
+
 document.getElementById("btnResetZone").onclick = async ()=>{
   if(!(await askConfirm(`${ZONE_META[currentZone].name}의 모든 배치(고정 구역 포함)를 비우고 빈 그리드로 시작할까요? (실행취소 가능)` + sharedNote()))) return;
   pushUndo();
@@ -2428,7 +2588,7 @@ document.getElementById("btnResetZone").onclick = async ()=>{
 };
 
 document.getElementById("btnResetAll").onclick = async ()=>{
-  if(!(await askConfirm("전체 동의 모든 배치를 초기화할까요? (실행취소로 되돌릴 수 있고, 저장된 시나리오는 유지됩니다)" + sharedNote()))) return;
+  if(!(await askConfirm("전체 동을 처음 상태(협의안이 있는 동은 협의안, 나머지는 빈 칸)로 초기화할까요? (실행취소로 되돌릴 수 있고, 저장된 시나리오는 유지됩니다)" + sharedNote()))) return;
   pushUndo();
   state = initialState();
   clearSelection();
