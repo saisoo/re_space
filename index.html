@@ -2955,11 +2955,36 @@ async function openSharedFromHash(){
 window.addEventListener("hashchange", openSharedFromHash);
 
 /* =========================================================
-   내 사이트(GitHub Pages)용 온라인 저장소 — 구글 시트 + Apps Script 웹 앱 (apps-script/Code.gs)
+   내 사이트(Cloudflare/GitHub Pages)용 온라인 저장소 — Supabase의 space_docs 표 (supabase/space_docs.sql)
    Claude 페이지의 db와 같은 모양(collection/doc/onSnapshot)으로 감싸서 아래 코드를 그대로 씀.
    실시간 연결 대신 몇 초마다 바뀐 것만 받아옴.
 ========================================================= */
-const SHEET_DB_URL = window.SPACE_DB_URL_OVERRIDE || "";   // Apps Script 웹 앱 주소(…/exec)
+// 포트폴리오 사이트와 같은 Supabase 프로젝트의 주소와 공개(publishable/anon) 키 — 공개돼도 되는 값
+const SUPABASE_URL = (window.SPACE_SUPABASE_OVERRIDE && window.SPACE_SUPABASE_OVERRIDE.url) || "";
+const SUPABASE_KEY = (window.SPACE_SUPABASE_OVERRIDE && window.SPACE_SUPABASE_OVERRIDE.key) || "";
+function supabaseApi(base, key){
+  const headers = { apikey: key, Authorization: "Bearer " + key, "Content-Type": "application/json" };
+  const toDoc = r=> ({ c: r.col, id: r.id, d: r.deleted ? null : r.data, u: Date.parse(r.updated_at) });
+  return {
+    async since(t){
+      const q = t ? "&updated_at=gt." + encodeURIComponent(new Date(t).toISOString()) : "";
+      const r = await fetch(`${base}/rest/v1/space_docs?select=col,id,data,deleted,updated_at&order=updated_at.asc${q}`, { headers, cache: "no-store" });
+      if(!r.ok) throw new Error("load " + r.status);
+      const docs = (await r.json()).map(toDoc);
+      return { docs, now: docs.reduce((m, x)=> Math.max(m, x.u), t || 0) };
+    },
+    async put(c, id, d){
+      const r = await fetch(`${base}/rest/v1/space_docs?on_conflict=col,id`, {
+        method: "POST",
+        headers: Object.assign({ Prefer: "resolution=merge-duplicates,return=representation" }, headers),
+        body: JSON.stringify({ col: c, id, data: d, deleted: d === null }),
+      });
+      if(!r.ok) return { ok: false, error: r.status === 413 ? "too_large" : "http_" + r.status };
+      const rows = await r.json();
+      return { ok: true, u: rows[0] ? Date.parse(rows[0].updated_at) : 0 };
+    },
+  };
+}
 const DEVICE_KEY = "deokyoung_space_device";
 const NAME_KEY = "deokyoung_space_name";
 function deviceId(){
@@ -2971,7 +2996,7 @@ function deviceId(){
   }
   return id;
 }
-function makeSheetDb(url){
+function makeRemoteDb(api){
   const cache = {};          // 컬렉션 → Map(id → {data, deleted, u(서버 시각), rev, pending})
   const subs = [];
   let revSeq = 0, lastNow = 0, loaded = null, timer = null, polling = false, failures = 0;
@@ -3006,8 +3031,7 @@ function makeSheetDb(url){
     polling = true;
     try{
       // 시각이 겹치게(15초) 물어봐서 같은 때에 저장된 것을 놓치지 않음 — 이미 받은 것은 u로 걸러냄
-      const r = await fetch(url + (url.includes("?") ? "&" : "?") + "t=" + Math.max(0, lastNow - 15000), { cache: "no-store" });
-      const j = await r.json();
+      const j = await api.since(lastNow ? lastNow - 15000 : 0);
       (j.docs || []).forEach(x=>{
         const m = col(x.c), cur = m.get(x.id);
         if(cur && (cur.pending || cur.u >= x.u)) return;
@@ -3036,10 +3060,7 @@ function makeSheetDb(url){
     m.set(id, { data: d, deleted: d === null, u: cur ? cur.u : 0, rev: ++revSeq, pending: ((cur && cur.pending) || 0) + 1 });
     notify();
     let res = null;
-    try{
-      const r = await fetch(url, { method: "POST", body: JSON.stringify({ c, id, d }) });
-      res = await r.json();
-    }catch(e){}
+    try{ res = await api.put(c, id, d); }catch(e){}
     const now = m.get(id);
     now.pending = Math.max(0, now.pending - 1);
     if(!res || !res.ok){
@@ -3076,7 +3097,7 @@ async function getOnlineDb(){
     const db = await window.claude.use("db");
     if(db) return { db, kind: "claude" };
   }
-  if(SHEET_DB_URL) return { db: makeSheetDb(SHEET_DB_URL), kind: "sheet" };
+  if(SUPABASE_URL && SUPABASE_KEY) return { db: makeRemoteDb(supabaseApi(SUPABASE_URL.replace(/\/$/, ""), SUPABASE_KEY)), kind: "supabase" };
   return null;
 }
 let onlineKind = null;
