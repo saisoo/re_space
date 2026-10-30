@@ -516,6 +516,7 @@ const FLOORS_BY_ZONE = {
 const FLOOR_LABEL_OVERRIDES = {};
 
 /* 협의된 기본 배치(1차 협의안) — 새 화면과 '협의안으로 되돌리기'의 기준. [층행, 칸, 너비, 이름, 호실, 구분, 고정, 메모] */
+const AGREED_REV = 1;   // 협의안을 바꾸면 올림 → 기존 기기에도 한 번 적용됨
 const AGREED_DATA = {
   C: { cols:15, floors:[6, 5, 4, 3, 2, 1], b:[
     [0, 0, 1, "기자재실", "196", "facility", 1],
@@ -1000,6 +1001,15 @@ function agreedZoneGrid(zone){
     blocks: a.b.map(r=> ({ id:newId(), row:r[0], col:r[1], w:r[2], h:1, name:r[3], num:r[4], category:r[5], fixed:!!r[6], note:r[7]||"" })) };
 }
 
+// 협의안이 나오기 전에 쓰던 기기: 협의안이 있는 동을 한 번 협의안으로 바꾸고, 이전 배치는 '저장한 배치'에 보관
+function applyAgreedOnce(){
+  const zones = Object.keys(AGREED_DATA).filter(z=> state[z]);
+  if(zones.some(z=> state[z].blocks.length > 0)){
+    scenarios[`협의안 적용 전 배치 (${nowStamp()})`] = JSON.parse(JSON.stringify(state));
+  }
+  zones.forEach(z=> state[z] = agreedZoneGrid(z));
+}
+
 function initialState(){
   // 협의된 기본 배치가 있는 동은 그 배치로, 나머지 동은 빈 그리드로 시작함.
   // 실제 2026학년도 배치가 필요하면 "더보기 → 2026 실제 배치로 재설정"으로 언제든 불러올 수 있음.
@@ -1085,7 +1095,7 @@ function scheduleSave(){
 function saveLocal(){
   const statusEl = document.getElementById("saveStatus");
   try{
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ v:DATA_VERSION, state, scenarios, currentZone, customPalette, cellZoom }));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ v:DATA_VERSION, agreed:AGREED_REV, state, scenarios, currentZone, customPalette, cellZoom }));
     const t = new Date();
     statusEl.textContent = `자동 저장됨 ${String(t.getHours()).padStart(2,"0")}:${String(t.getMinutes()).padStart(2,"0")}`;
   }catch(err){
@@ -1105,6 +1115,7 @@ function loadLocal(){
     if(parsed.currentZone && ZONE_META[parsed.currentZone]) currentZone = parsed.currentZone;
     customPalette = normalizeCustomPalette(migratePalette(parsed.customPalette, ver));
     if(typeof parsed.cellZoom === "number" && parsed.cellZoom >= 0.5 && parsed.cellZoom <= 2.5) cellZoom = parsed.cellZoom;
+    if((parsed.agreed || 0) < AGREED_REV){ syncIdSeq(); applyAgreedOnce(); }
     syncIdSeq();
     return true;
   }catch(err){
