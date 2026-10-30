@@ -12,18 +12,15 @@
   /* 가로 칸이 많거나 크게 보기면 밀어서(스크롤) 봄. 스크롤바가 생겼다 사라지며 칸 크기가 흔들리지 않도록 자리 고정 */
   #canvasWrap { overflow: auto; scrollbar-gutter: stable; background-color: #fafbfd; }
 
-  #canvas {
-    background-image:
-      linear-gradient(90deg, #eef1f6 1px, transparent 1px),
-      linear-gradient(#eef1f6 1px, transparent 1px);
-  }
+  /* 그리기 부담 줄이기: 배치도 영역 안의 변화가 바깥으로 번지지 않게 (느린 PC 버벅임 완화) */
+  #canvasWrap { contain: layout paint; }
+  #canvas { contain: layout; }
 
   .room-block {
     position: absolute;
     border-radius: 8px;
     border-width: 2px;
     border-style: solid;
-    box-shadow: 0 1px 3px rgba(15,23,42,.08);
     display: flex;
     flex-direction: column;
     justify-content: center;
@@ -66,7 +63,7 @@
   .room-block .badge { flex-shrink:0; font-size:8px; font-weight:800; letter-spacing:.02em; line-height:1.3; padding:0 4px; margin-bottom:1px; border-radius:4px; background:rgba(15,23,42,.14); color:#334155; }
 
   .blankCell {
-    position:absolute; border-radius:8px; border:1.5px dashed #cbd5e1; background:rgba(255,255,255,.5);
+    position:absolute; border-radius:8px; border:1.5px solid #e2e8f0; background:#ffffff;
     cursor:copy; transition:.12s;
   }
   .blankCell:hover { background:#eef2ff; border-color:#818cf8; }
@@ -1627,6 +1624,35 @@ function renderPadCols(zs){
   document.getElementById("padColsPlus").disabled = zs.cols >= MAX_COLS;
 }
 
+/* ---- 빠른 갱신: 선택만 바뀐 경우 배치도를 다시 그리지 않고 표시만 바꿈 (느린 PC에서 버벅임 줄이기) ---- */
+function refreshSelection(){
+  canvasEl.querySelectorAll(".room-block").forEach(el=>{
+    el.classList.toggle("selected", el.dataset.id === selectedId);
+    el.classList.toggle("multiSelected", multiSelect.includes(el.dataset.id));
+  });
+  canvasEl.querySelectorAll(".blankCell").forEach(el=>{
+    const r = +el.dataset.r, c = +el.dataset.c;
+    const i = selectedBlanks.findIndex(x=> x.row === r && x.col === c);
+    el.classList.toggle("blankSelected", i > -1);
+    el.textContent = (i > -1 && selectedBlanks.length > 1) ? (i + 1) : "";
+  });
+  renderEditPanel();
+  if(!document.getElementById("managePopup").classList.contains("hidden")) renderList(zoneState());
+}
+// 이름·호실·메모 입력 중: 그 공간 글자만 바로 바꾸고, 전체 다시 그리기는 입력이 멈춘 뒤 한 번
+let typingRenderTimer = null;
+function refreshBlockText(b){
+  const el = canvasEl.querySelector(`[data-id="${b.id}"]`);
+  if(el){
+    const nameEl = el.querySelector(".name");
+    if(nameEl) nameEl.innerHTML = nameHtml(b.name);
+    const numEl = el.querySelector(".num");
+    if(numEl) numEl.textContent = b.num ? "#" + b.num : "";
+  }
+  clearTimeout(typingRenderTimer);
+  typingRenderTimer = setTimeout(()=> renderCanvas({skipEditPanel:true}), 600);
+}
+
 function renderCanvas(opts){
   opts = opts || {};
   const zs = zoneState();
@@ -1671,7 +1697,7 @@ function renderCanvas(opts){
         if(multiSelectMode) toggleBlank(r, c);
         else selectedBlanks = (selectedBlanks.length === 1 && selectedBlanks[0].row === r && selectedBlanks[0].col === c) ? [] : [{row:r, col:c}];
         selectedId = null; multiSelect = [];
-        renderCanvas();
+        refreshSelection();
         blankSelectHint();
       });
       canvasEl.appendChild(cell);
@@ -1906,6 +1932,7 @@ function startDrag(ev, block){
     }
     selectedId = block.id;
     multiSelect = []; selectedBlanks = [];
+    if(!moved){ refreshSelection(); return; } // 누르기만 했으면 표시만 바꿈
     renderCanvas();
   }
   document.addEventListener("pointermove", onMove);
@@ -2136,9 +2163,9 @@ canvasEl.addEventListener("pointerdown", ev=>{
   if(!multi){
     selectedBlanks = (selectedBlanks.length === 1 && selectedBlanks[0].row === r && selectedBlanks[0].col === c) ? [] : [{row:r, col:c}];
     selectedId = null; multiSelect = [];
-    blankPaintHandled = true;
-    renderCanvas();
-    setTimeout(()=>{ blankPaintHandled = false; }, 0);
+    blankPaintHandled = true; // 뒤따르는 click 한 번은 무시 (마우스를 뗀 직후 풀림)
+    refreshSelection();
+    document.addEventListener("pointerup", ()=> setTimeout(()=>{ blankPaintHandled = false; }, 0), { once: true });
     return;
   }
   const apply = (el)=>{
@@ -2154,7 +2181,7 @@ canvasEl.addEventListener("pointerdown", ev=>{
   const onUp = ()=>{
     canvasEl.removeEventListener("pointerover", onOver);
     document.removeEventListener("pointerup", onUp);
-    renderCanvas();
+    refreshSelection();
     blankSelectHint();
     setTimeout(()=>{ blankPaintHandled = false; }, 0); // 뒤따르는 click 한 번만 무시
   };
@@ -2443,11 +2470,11 @@ function renderEditPanel(){
 
   document.getElementById("editMore").addEventListener("toggle", e=>{ editMoreOpen = e.target.open; });
   document.getElementById("editName").addEventListener("focus", armUndoOnce);
-  document.getElementById("editName").oninput = e=>{ b.name = e.target.value; renderCanvas({skipEditPanel:true}); };
+  document.getElementById("editName").oninput = e=>{ b.name = e.target.value; refreshBlockText(b); };
   document.getElementById("editNum").addEventListener("focus", armUndoOnce);
-  document.getElementById("editNum").oninput = e=>{ b.num = e.target.value; renderCanvas({skipEditPanel:true}); };
+  document.getElementById("editNum").oninput = e=>{ b.num = e.target.value; refreshBlockText(b); };
   document.getElementById("editNote").addEventListener("focus", armUndoOnce);
-  document.getElementById("editNote").oninput = e=>{ b.note = e.target.value; renderCanvas({skipEditPanel:true}); };
+  document.getElementById("editNote").oninput = e=>{ b.note = e.target.value; refreshBlockText(b); };
   panel.querySelectorAll(".catChip").forEach(el=>{
     el.onclick = ()=>{ if(el.dataset.cat === b.category) return; pushUndo(); b.category = el.dataset.cat; renderCanvas(); };
   });
