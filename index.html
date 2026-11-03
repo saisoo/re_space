@@ -230,6 +230,7 @@
       <button id="btnExportImg" class="moreItem">이미지 저장</button>
       <button id="btnLoadAgreed" class="moreItem">기본 배치로 되돌리기</button>
       <button id="btnSetDefault" class="moreItem">지금 배치를 기본으로 등록</button>
+      <button id="btnNumberSmart" class="moreItem">스마트교실 번호 매기기</button>
       <button id="btnLoadReal" class="moreItem">2026 실제 배치로 재설정</button>
       <button id="btnResetZone" class="moreItem">현재 동 비우기</button>
       <button id="btnResetAll" class="moreItem text-rose-600">전체 초기화</button>
@@ -617,26 +618,26 @@ const AGREED_DATA = {
   ]},
   V: { cols:13, floors:[3, 2, 1, -1], b:[
     [0, 0, 1, "계단", "", "fixed", 1],
-    [0, 1, 1, "스마트교실", "135", "classroom", 0],
-    [0, 2, 1, "스마트교실", "136", "classroom", 0],
-    [0, 3, 1.5, "스마트교실", "137", "classroom", 0],
-    [0, 4.5, 1, "스마트교실", "138", "classroom", 0],
-    [0, 5.5, 1, "스마트교실", "139", "classroom", 0],
-    [0, 6.5, 1, "스마트교실", "140", "classroom", 0],
-    [0, 7.5, 1, "스마트교실", "141", "classroom", 0],
-    [0, 8.5, 1, "스마트교실", "142", "classroom", 0, "협의 문서에서 파란색으로 표시된 칸"],
-    [0, 9.5, 1, "스마트교실", "143", "classroom", 0, "협의 문서에서 파란색으로 표시된 칸"],
+    [0, 1, 1, "스마트교실10", "135", "classroom", 0],
+    [0, 2, 1, "스마트교실11", "136", "classroom", 0],
+    [0, 3, 1.5, "스마트교실12", "137", "classroom", 0],
+    [0, 4.5, 1, "스마트교실13", "138", "classroom", 0],
+    [0, 5.5, 1, "스마트교실14", "139", "classroom", 0],
+    [0, 6.5, 1, "스마트교실15", "140", "classroom", 0],
+    [0, 7.5, 1, "스마트교실16", "141", "classroom", 0],
+    [0, 8.5, 1, "스마트교실17", "142", "classroom", 0, "협의 문서에서 파란색으로 표시된 칸"],
+    [0, 9.5, 1, "스마트교실18", "143", "classroom", 0, "협의 문서에서 파란색으로 표시된 칸"],
     [0, 10.5, 1, "계단", "", "fixed", 1],
     [1, 0, 1, "계단", "", "fixed", 1],
-    [1, 1, 1, "스마트교실", "126", "classroom", 0],
-    [1, 2, 1, "스마트교실", "127", "classroom", 0],
-    [1, 3, 1.5, "스마트교실", "128", "classroom", 0],
-    [1, 4.5, 1, "스마트교실", "129", "classroom", 0],
-    [1, 5.5, 1, "스마트교실", "130", "classroom", 0],
-    [1, 6.5, 1, "스마트교실", "131", "classroom", 0],
-    [1, 7.5, 1, "스마트교실", "132", "classroom", 0],
-    [1, 8.5, 1, "스마트교실", "133", "classroom", 0, "협의 문서에서 파란색으로 표시된 칸"],
-    [1, 9.5, 1, "스마트교실", "134", "classroom", 0, "협의 문서에서 파란색으로 표시된 칸"],
+    [1, 1, 1, "스마트교실1", "126", "classroom", 0],
+    [1, 2, 1, "스마트교실2", "127", "classroom", 0],
+    [1, 3, 1.5, "스마트교실3", "128", "classroom", 0],
+    [1, 4.5, 1, "스마트교실4", "129", "classroom", 0],
+    [1, 5.5, 1, "스마트교실5", "130", "classroom", 0],
+    [1, 6.5, 1, "스마트교실6", "131", "classroom", 0],
+    [1, 7.5, 1, "스마트교실7", "132", "classroom", 0],
+    [1, 8.5, 1, "스마트교실8", "133", "classroom", 0, "협의 문서에서 파란색으로 표시된 칸"],
+    [1, 9.5, 1, "스마트교실9", "134", "classroom", 0, "협의 문서에서 파란색으로 표시된 칸"],
     [1, 10.5, 1, "계단", "", "fixed", 1],
     [2, 0, 1, "현관", "", "fixed", 1],
     [2, 1, 2.5, "본교무실(24)", "113~115", "admin", 0],
@@ -663,24 +664,24 @@ const AGREED_DATA = {
     [0, 4.0, 1, "과학준비실", "231", "special", 0],
     [0, 5.0, 1, "화장실(여)", "", "fixed", 1],
     [0, 6.0, 1, "화장실(남)", "", "fixed", 1],
-    [1, 0.5, 1, "스마트교실", "224", "classroom", 0],
-    [1, 1.5, 1, "스마트교실", "225", "classroom", 0],
+    [1, 0.5, 1, "스마트교실25", "224", "classroom", 0],
+    [1, 1.5, 1, "스마트교실26", "225", "classroom", 0],
     [1, 2.5, 0.5, "계단", "", "fixed", 1],
-    [1, 3.0, 1, "스마트교실", "226", "classroom", 0],
+    [1, 3.0, 1, "스마트교실27", "226", "classroom", 0],
     [1, 4.0, 1, "위클래스(상담실)", "227", "admin", 0],
     [1, 5.0, 1, "화장실(여)", "", "fixed", 1],
     [1, 6.0, 1, "화장실(남)", "", "fixed", 1],
-    [2, 0.5, 1, "스마트교실", "219", "classroom", 0],
-    [2, 1.5, 1, "스마트교실", "220", "classroom", 0],
+    [2, 0.5, 1, "스마트교실22", "219", "classroom", 0],
+    [2, 1.5, 1, "스마트교실23", "220", "classroom", 0],
     [2, 2.5, 0.5, "계단", "", "fixed", 1],
-    [2, 3.0, 1, "스마트교실", "221,222", "classroom", 0, "협의 문서에서 파란색으로 표시된 칸"],
+    [2, 3.0, 1, "스마트교실24", "221,222", "classroom", 0, "협의 문서에서 파란색으로 표시된 칸"],
     [2, 4.0, 1, "아트랩(미술실)", "223", "design", 0],
     [2, 5.0, 1, "화장실(여)", "", "fixed", 1, "협의 문서에서 노란색으로 표시된 칸"],
     [2, 6.0, 1, "화장실(남)", "", "fixed", 1],
-    [3, 0.5, 1, "스마트교실", "215", "classroom", 0],
-    [3, 1.5, 1, "스마트교실", "216", "classroom", 0],
+    [3, 0.5, 1, "스마트교실19", "215", "classroom", 0],
+    [3, 1.5, 1, "스마트교실20", "216", "classroom", 0],
     [3, 2.5, 0.5, "계단", "", "fixed", 1],
-    [3, 3.0, 1, "스마트교실", "217", "classroom", 0, "협의 문서에서 파란색으로 표시된 칸"],
+    [3, 3.0, 1, "스마트교실21", "217", "classroom", 0, "협의 문서에서 파란색으로 표시된 칸"],
     [3, 4.0, 1, "교무실", "218", "admin", 0],
     [3, 5.0, 1, "화장실(여)", "", "fixed", 1],
     [3, 6.0, 1, "화장실(남)", "", "fixed", 1],
@@ -2673,6 +2674,31 @@ document.getElementById("btnLoadAgreed").onclick = async ()=>{
   clearSelection();
   renderCanvas();
   toastUndo("기본 배치로 되돌렸어요.");
+};
+/* 스마트교실 번호: 동 순서(창조관→비전관→서관→동관→덕영관)대로, 각 동은 1층부터 위로, 같은 층은 왼쪽부터 1, 2, 3 …
+   (지하층은 지상층 다음). 이름이 '스마트교실' 또는 '스마트교실+숫자'인 공간만 바꿈 */
+const SMART_RE = /^스마트\s*교실\s*\d*$/;
+function numberSmartRooms(st){
+  let n = 0;
+  Object.keys(ZONE_META).forEach(z=>{
+    const zs = st[z];
+    if(!zs) return;
+    zs.floors.map((f, row)=> ({ f, row }))
+      .sort((a, b)=> (a.f < 0) - (b.f < 0) || a.f - b.f)
+      .forEach(({ row })=> zs.blocks.filter(b=> b.row === row && SMART_RE.test(b.name)).sort((a, b)=> a.col - b.col)
+        .forEach(b=>{ b.name = "스마트교실" + (++n); }));
+  });
+  return n;
+}
+document.getElementById("btnNumberSmart").onclick = async ()=>{
+  const count = Object.values(state).reduce((s, zs)=> s + zs.blocks.filter(b=> SMART_RE.test(b.name)).length, 0);
+  if(!count){ toast("이름이 '스마트교실'인 공간이 없어요."); return; }
+  if(!(await askConfirm(`스마트교실 ${count}개에 번호를 다시 매길까요?\n창조관→비전관→서관→동관→덕영관 순서로, 각 동은 1층부터 위로·왼쪽부터 1, 2, 3 … (실행취소 가능)` + sharedNote(), "번호 매기기"))) return;
+  pushUndo();
+  const n = numberSmartRooms(state);
+  clearSelection();
+  renderAll();
+  toastUndo(`스마트교실 ${n}개에 번호를 매겼어요 (1~${n}).`);
 };
 document.getElementById("btnSetDefault").onclick = async ()=>{
   if(!onlineDb){ toast("온라인 저장소에 연결돼 있을 때만 등록할 수 있어요."); return; }
