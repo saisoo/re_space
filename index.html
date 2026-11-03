@@ -42,9 +42,6 @@
   .room-block:hover { box-shadow: 0 4px 10px rgba(15,23,42,.18); }
   .room-block.selected { outline: 3px solid #0f172a; outline-offset: 1px; z-index: 30; }
   .room-block.multiSelected { outline: 3px solid #2563eb; outline-offset: 1px; z-index: 29; }
-  /* 의견이 달린 공간: 왼쪽 위 작은 숫자 */
-  .room-block .commentBadge { position:absolute; top:2px; left:3px; min-width:13px; height:13px; padding:0 3px; border-radius:7px;
-    background:#f59e0b; color:#fff; font-size:9px; font-weight:800; line-height:13px; text-align:center; }
   /* '더보기' 메뉴: 컴퓨터에서는 버튼 아래 펼침, 휴대폰 메뉴 안에서는 그냥 나열 */
   .moreMenu { position: fixed; top: 44px; right: 12px; z-index: 75; display: flex; flex-direction: column; min-width: 190px;
     background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; box-shadow: 0 10px 24px rgba(15,23,42,.15); padding: 4px; }
@@ -57,8 +54,6 @@
       gap: 4px; min-width: 0; padding: 0; border: 0; box-shadow: none; background: transparent; width: 100%; }
     #toolGroup.mobileOpen .moreItem { background: #f1f5f9; padding: 6px 9px; }
   }
-  .noteFilter { background:#f1f5f9; color:#64748b; }
-  .noteFilter.on { background:#0f172a; color:#fff; }
   .room-block .noteDot { position:absolute; top:3px; right:3px; width:6px; height:6px; border-radius:50%; background:#0f172a; opacity:.55; }
   .room-block.dragging { cursor: grabbing; z-index: 40; opacity: .9; }
   .room-block.lifted { transform: scale(1.06); box-shadow: 0 8px 18px rgba(15,23,42,.3); z-index: 40; }
@@ -368,21 +363,12 @@
 <!-- ===== 의견(협의 내용) 팝업 — Claude 페이지에서만 ===== -->
 <div id="notesPopup" class="fixed inset-x-3 bottom-3 sm:bottom-auto sm:inset-x-auto sm:top-[104px] sm:right-4 sm:w-[360px] max-h-[75vh] overflow-y-auto scrollbar-thin bg-white rounded-2xl border border-slate-200 shadow-lg p-3 z-[60] hidden space-y-3">
   <div class="flex items-center justify-between">
-    <h3 class="text-sm font-extrabold text-slate-700">의견 · 협의 내용</h3>
+    <h3 class="text-sm font-extrabold text-slate-700">의견 · 협의 내용 <span id="noteCountInfo" class="text-[11px] font-semibold text-slate-400"></span></h3>
     <button id="notesPopupClose" class="w-6 h-6 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-600 text-sm font-bold flex-shrink-0">✕</button>
   </div>
   <div id="noteForm" class="bg-amber-50 rounded-xl p-2.5 space-y-1.5">
-    <div class="flex items-center gap-1.5 text-[11px] font-bold text-amber-800">
-      <span>어디에</span>
-      <select id="noteTarget" class="flex-1 min-w-0 text-xs border border-amber-200 rounded-lg px-2 py-1 bg-white"></select>
-    </div>
     <textarea id="noteText" rows="3" placeholder="협의한 내용이나 의견을 적어 주세요. 예: 3층 스마트교실은 2027년부터 2칸으로 확장하기로 함" class="w-full text-xs border border-amber-200 rounded-lg px-2 py-1.5 resize-none bg-white"></textarea>
     <button id="noteAddBtn" class="w-full text-xs font-bold bg-amber-500 text-white rounded-lg py-1.5 hover:bg-amber-600">의견 남기기</button>
-  </div>
-  <div class="flex items-center gap-1 text-[11px] font-bold">
-    <button id="noteFilterZone" class="noteFilter px-2 py-1 rounded-md">현재 동</button>
-    <button id="noteFilterAll" class="noteFilter px-2 py-1 rounded-md">전체</button>
-    <span id="noteFilterInfo" class="ml-auto text-[10.5px] font-semibold text-slate-400"></span>
   </div>
   <ul id="notesList" class="space-y-1.5"></ul>
 </div>
@@ -1899,7 +1885,6 @@ function renderCanvas(opts){
       <div class="name">${nameHtml(b.name)}</div>
       ${(b.num && roomy)?`<div class="num">#${esc(b.num)}</div>`:""}
       ${(b.note && b.note.trim())?'<span class="noteDot"></span>':''}
-      ${notesByBlock[b.id] ? `<span class="commentBadge" title="의견 ${notesByBlock[b.id]}개">${notesByBlock[b.id]}</span>` : ""}
     `;
     if(!b.fixed){
       const handle = document.createElement("div");
@@ -2562,7 +2547,6 @@ function renderEditPanel(){
         <button id="gapAdd" class="px-2.5 py-1.5 rounded-lg bg-white border border-slate-200 text-[11px] font-bold text-slate-600">＋ 끼워 넣기</button>
         <button id="gapRemove" class="px-2.5 py-1.5 rounded-lg bg-white border border-slate-200 text-[11px] font-bold text-slate-600 disabled:opacity-35" ${(b.col>=1 && rectFree(zs, b.row, b.col-1, 1, 1))?"":"disabled"}>－ 없애기</button>
       </div>
-      ${notesEnabled ? `<button id="editNote2" class="w-full text-xs font-bold bg-amber-50 text-amber-800 rounded-lg py-1.5 hover:bg-amber-100">이 공간에 의견 달기${notesByBlock[b.id] ? ` (${notesByBlock[b.id]})` : ""}</button>` : ""}
       <details id="editMore" class="bg-slate-50 rounded-lg px-2.5 py-1.5" ${editMoreOpen?"open":""}>
         <summary class="text-[11px] font-bold text-slate-500 cursor-pointer select-none">더보기 · 호실 번호, 메모, 고정${b.num?` <span class="text-slate-400">#${esc(b.num)}</span>`:""}${(b.note&&b.note.trim())?' <span class="text-slate-400">· 메모 있음</span>':""}</summary>
         <div class="space-y-2 pt-2">
@@ -2613,8 +2597,6 @@ function renderEditPanel(){
   document.getElementById("editDuplicate").onclick = ()=> duplicateBlock(b.id);
   document.getElementById("editSplit").onclick = ()=> splitBlock(b.id);
   document.getElementById("editDelete").onclick = ()=> deleteBlock(b.id);
-  const noteBtn = document.getElementById("editNote2");
-  if(noteBtn) noteBtn.onclick = ()=> openNotes(b.id);
   document.getElementById("gapAdd").onclick = ()=> insertGapLeft(b);
   document.getElementById("gapRemove").onclick = ()=> removeGapLeft(b);
   document.getElementById("seqApply").onclick = ()=>{
@@ -3213,7 +3195,6 @@ function supabaseApi(base, key){
   };
 }
 const DEVICE_KEY = "deokyoung_space_device";
-const NAME_KEY = "deokyoung_space_name";
 function deviceId(){
   let id = null;
   try{ id = localStorage.getItem(DEVICE_KEY); }catch(e){}
@@ -3602,61 +3583,33 @@ async function renderPeers(){
 }
 
 /* =========================================================
-   의견 · 협의 내용 — notes 컬렉션 (동 전체 또는 특정 공간에 연결)
+   의견 · 협의 내용 — notes 컬렉션. 위치·이름 없이 글과 시각만 (최근 것이 위)
 ========================================================= */
 let notesEnabled = false;
 let notesDocs = [];
-let notesByBlock = {};
-let notesFilterAll = false;
 let canEditAll = false;
 const notesPopupEl = document.getElementById("notesPopup");
 function noteTime(iso){
   const d = new Date(iso);
   return isNaN(d) ? "" : `${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`;
 }
-function fillNoteTargets(preferId){
-  const sel = document.getElementById("noteTarget");
-  const zs = zoneState();
-  const opts = [`<option value="">${esc(ZONE_META[currentZone].name)} 전체</option>`];
-  zs.blocks.slice().sort((a,b)=> a.row-b.row || a.col-b.col).forEach(b=>{
-    opts.push(`<option value="${esc(b.id)}">${esc(floorLabelText(currentZone, zs.floors[b.row]))} · ${esc(b.name)}</option>`);
-  });
-  sel.innerHTML = opts.join("");
-  sel.value = preferId && zs.blocks.some(b=> b.id === preferId) ? preferId : "";
-}
-async function renderNotes(){
+function renderNotes(){
   if(!notesEnabled) return;
-  document.getElementById("noteFilterZone").classList.toggle("on", !notesFilterAll);
-  document.getElementById("noteFilterAll").classList.toggle("on", notesFilterAll);
-  const list = notesFilterAll ? notesDocs : notesDocs.filter(n=> n.zone === currentZone);
-  document.getElementById("noteFilterInfo").textContent = `${list.length}개`;
+  document.getElementById("noteCountInfo").textContent = notesDocs.length ? `${notesDocs.length}개` : "";
   const ul = document.getElementById("notesList");
-  if(list.length === 0){ ul.innerHTML = `<li class="text-[11px] text-slate-400 px-1">아직 남긴 의견이 없어요.</li>`; return; }
-  const ids = [...new Set(list.map(n=> n.by).filter(Boolean))];
-  let profiles = {};
-  try{ if(userApi && ids.length) profiles = await userApi.profiles(ids); }catch(e){}
+  if(notesDocs.length === 0){ ul.innerHTML = `<li class="text-[11px] text-slate-400 px-1">아직 남긴 의견이 없어요.</li>`; return; }
   ul.innerHTML = "";
-  list.forEach(n=>{
+  notesDocs.forEach(n=>{
     const li = document.createElement("li");
     li.className = "rounded-lg border border-slate-200 px-2.5 py-2";
-    const who = (n.by && profiles[n.by] && profiles[n.by].name) || n.byName || "이름 없음";
-    const where = (ZONE_META[n.zone] ? ZONE_META[n.zone].name : "") + (n.targetName ? ` · ${n.targetName}` : " 전체");
     const mine = n.by && n.by === myId;
     li.innerHTML = `
       <div class="flex items-center gap-1.5 text-[10.5px] text-slate-400 mb-0.5">
-        <span class="font-bold text-slate-600">${esc(who)}</span><span>${esc(noteTime(n.at))}</span>
+        <span>${esc(noteTime(n.at))}</span>
         ${(mine || canEditAll) ? '<button data-act="del" class="ml-auto font-bold text-rose-400 hover:text-rose-600">삭제</button>' : ""}
       </div>
-      <button data-act="go" class="text-[10.5px] font-bold text-amber-700 bg-amber-50 rounded px-1.5 py-0.5 mb-1">${esc(where)}</button>
       <p class="text-xs text-slate-700 whitespace-pre-wrap break-words"></p>`;
     li.querySelector("p").textContent = n.text || "";
-    li.querySelector('[data-act="go"]').onclick = ()=>{
-      if(ZONE_META[n.zone] && n.zone !== currentZone) switchZone(n.zone);
-      const zs = zoneState();
-      const target = n.targetId && zs.blocks.find(b=> b.id === n.targetId);
-      if(target){ selectedId = target.id; selectedBlanks = []; multiSelect = []; if(isNarrow()) notesPopupEl.classList.add("hidden"); renderCanvas(); scrollBlockIntoView(target.id); }
-      else if(n.targetId) toast(`'${n.targetName}' 공간이 지금 배치에는 없어요.`);
-    };
     const del = li.querySelector('[data-act="del"]');
     if(del) del.onclick = async ()=>{
       if(!(await askConfirm("이 의견을 삭제할까요? 모두에게서 사라져요.", "삭제"))) return;
@@ -3665,11 +3618,9 @@ async function renderNotes(){
     ul.appendChild(li);
   });
 }
-function openNotes(targetId){
+function openNotes(){
   notesPopupEl.classList.remove("hidden");
   document.getElementById("sharePopup").classList.add("hidden");
-  if(targetId) notesFilterAll = false;
-  fillNoteTargets(targetId || selectedId);
   renderNotes();
   document.getElementById("noteText").focus();
 }
@@ -3677,26 +3628,10 @@ async function addNote(){
   const ta = document.getElementById("noteText");
   const text = ta.value.trim();
   if(!text){ ta.focus(); return; }
-  const targetId = document.getElementById("noteTarget").value;
-  const target = targetId ? zoneState().blocks.find(b=> b.id === targetId) : null;
-  // 구글 시트 저장소에는 로그인 정보가 없어서, 처음 한 번 이름을 물어 이 기기에 기억함
-  let byName = "";
-  if(onlineKind !== "claude"){
-    try{ byName = localStorage.getItem(NAME_KEY) || ""; }catch(e){}
-    if(!byName){
-      byName = ((window.prompt("의견에 표시할 이름을 적어 주세요. (예: 김선생님)") || "").trim()).slice(0, 20);
-      if(!byName) return;
-      try{ localStorage.setItem(NAME_KEY, byName); }catch(e){}
-    }
-  }
   const btn = document.getElementById("noteAddBtn");
   btn.disabled = true;
   try{
-    await onlineDb.collection("notes").add(Object.assign({
-      text: text.slice(0, 2000), zone: currentZone,
-      targetId: target ? target.id : "", targetName: target ? target.name : "",
-      by: myId || "", at: new Date().toISOString(),
-    }, byName ? { byName } : {}));
+    await onlineDb.collection("notes").add({ text: text.slice(0, 2000), by: myId || "", at: new Date().toISOString() });
     ta.value = "";
     toast("의견을 남겼어요.");
   }catch(err){
@@ -3706,15 +3641,11 @@ async function addNote(){
   }finally{ btn.disabled = false; }
 }
 function recountNotes(){
-  notesByBlock = {};
-  notesDocs.forEach(n=>{ if(n.targetId) notesByBlock[n.targetId] = (notesByBlock[n.targetId] || 0) + 1; });
   document.getElementById("notesCount").textContent = notesDocs.length ? notesDocs.length : "";
 }
 document.getElementById("btnNotes").onclick = ()=>{ if(notesPopupEl.classList.contains("hidden")) openNotes(); else notesPopupEl.classList.add("hidden"); };
 document.getElementById("notesPopupClose").onclick = ()=> notesPopupEl.classList.add("hidden");
 document.getElementById("noteAddBtn").onclick = addNote;
-document.getElementById("noteFilterZone").onclick = ()=>{ notesFilterAll = false; renderNotes(); };
-document.getElementById("noteFilterAll").onclick = ()=>{ notesFilterAll = true; renderNotes(); };
 
 /* ---- Claude 페이지 기능 켜기: 사람 정보 → 의견 → 공동 편집 ---- */
 async function initCollab(){
@@ -3730,7 +3661,6 @@ async function initCollab(){
   onlineDb.collection("notes").orderBy("at", "desc").limit(500).onSnapshot(snap=>{
     notesDocs = snap.docs.map(d=> Object.assign({ id: d.id }, d.data()));
     recountNotes();
-    renderCanvas({ skipEditPanel: true });
     if(!notesPopupEl.classList.contains("hidden")) renderNotes();
   }, ()=>{});
   // 공동 편집
