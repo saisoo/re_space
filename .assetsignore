@@ -1,0 +1,8 @@
+# 사이트에 올리지 않을 파일 (설정·SQL·저장소 정보)
+.git
+.github
+.assetsignore
+wrangler.jsonc
+supabase
+node_modules
+*.md
