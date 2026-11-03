@@ -70,6 +70,7 @@
   #planSheet .pzTitle { font-size:17px; font-weight:800; letter-spacing:-0.01em; }
   #planSheet .pzBody { display:flex; gap:6px; }
   #planSheet .pzFloors { position:relative; width:34px; flex-shrink:0; }
+  #planSheet .pzBody.rot { flex-direction:column; gap:3px; }
   #planSheet .pzFloors span { position:absolute; left:0; right:0; display:flex; align-items:center; justify-content:center; font-size:10.5px; font-weight:700; color:#64748b; }
   #planSheet .pzGrid { position:relative; flex-shrink:0; }
   #planSheet .pc { position:absolute; border:1.5px solid #1f2937; background:#fff; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; overflow:hidden; padding:2px 3px; }
@@ -2858,6 +2859,7 @@ function exportImage(){
 ========================================================= */
 const PLAN_ORDER = ["C", "E", "V", "W", "D"];   // 협의 문서 순서 (동관은 오른쪽 정렬)
 const PLAN_U = 84, PLAN_H = 72;                  // 한 칸의 너비·높이(px)
+const PLAN_ROT = { E: 90 };                      // 시계 방향으로 돌려 그릴 동 (동관: 실제 놓인 방향대로)
 let planColor = false;
 function planCellBg(b){
   const note = b.note || "";
@@ -2872,21 +2874,32 @@ function renderPlanView(){
   PLAN_ORDER.filter(z=> ZONE_META[z] && state[z] && state[z].blocks.length).forEach(z=>{
     const zs = state[z];
     const cols = Math.max(1, Math.ceil(zs.blocks.reduce((m, b)=> Math.max(m, b.col + b.w), 0)));
-    const W = cols * PLAN_U, H = zs.floors.length * PLAN_H;
-    const floors = zs.floors.map((f, i)=> `<span style="top:${i*PLAN_H}px;height:${PLAN_H}px">${esc(floorLabelText(z, f))}</span>`).join("");
+    const rows = zs.floors.length;
+    // 시계 방향 90° 회전: 층(행)이 열이 되어 맨 위층이 오른쪽, 칸(열)은 위에서 아래로. 글자는 바로 세워 둠
+    const rot = PLAN_ROT[z] === 90;
+    const W = rot ? rows * PLAN_U : cols * PLAN_U, H = rot ? cols * PLAN_H : rows * PLAN_H;
+    const floors = rot
+      ? zs.floors.map((f, i)=> `<span style="left:${(rows - 1 - i)*PLAN_U}px;width:${PLAN_U}px;top:0;height:18px">${esc(floorLabelText(z, f))}</span>`).join("")
+      : zs.floors.map((f, i)=> `<span style="top:${i*PLAN_H}px;height:${PLAN_H}px">${esc(floorLabelText(z, f))}</span>`).join("");
     const cells = zs.blocks.slice().sort((a, b)=> a.row - b.row || a.col - b.col).map(b=>{
       const lines = b.w < 1 ? [b.name] : (splitName(b.name) || [b.name]);
       const bg = planCellBg(b);
       const hatch = !bg && /계단|현관|엘리베이터/.test(b.name);   // 협의 문서처럼 계단·현관만 모눈
-      const cls = "pc" + (hatch ? " fx" : "") + (b.w < 1 ? " half" : "");
-      return `<div class="${cls}" style="left:${b.col*PLAN_U}px;top:${b.row*PLAN_H}px;width:${b.w*PLAN_U + 1.5}px;height:${PLAN_H + 1.5}px;${bg ? `background:${bg};` : ""}">
+      const cls = "pc" + (hatch ? " fx" : "") + (b.w < 1 && !rot ? " half" : "");   // 돌린 동의 반 칸은 납작하고 넓어 한 줄로 충분
+      const box = rot
+        ? `left:${(rows - 1 - b.row)*PLAN_U}px;top:${b.col*PLAN_H}px;width:${PLAN_U + 1.5}px;height:${b.w*PLAN_H + 1.5}px;`
+        : `left:${b.col*PLAN_U}px;top:${b.row*PLAN_H}px;width:${b.w*PLAN_U + 1.5}px;height:${PLAN_H + 1.5}px;`;
+      return `<div class="${cls}" style="${box}${bg ? `background:${bg};` : ""}">
         <div class="pn">${lines.map(l=> `<span>${esc(l)}</span>`).join("")}</div>
         ${b.num ? `<div class="pr">${esc(b.num)}</div>` : ""}</div>`;
     }).join("");
     parts.push(`<section class="pz${z === "E" ? " right" : ""}">
       <div class="pzTitle">◈ ${esc(ZONE_META[z].name)}(${z})</div>
-      <div class="pzBody"><div class="pzFloors" style="height:${H}px">${floors}</div>
-        <div class="pzGrid" style="width:${W + 1.5}px;height:${H + 1.5}px">${cells}</div></div>
+      ${rot
+        ? `<div class="pzBody rot"><div class="pzFloors" style="width:${W}px;height:18px">${floors}</div>
+            <div class="pzGrid" style="width:${W + 1.5}px;height:${H + 1.5}px">${cells}</div></div>`
+        : `<div class="pzBody"><div class="pzFloors" style="height:${H}px">${floors}</div>
+            <div class="pzGrid" style="width:${W + 1.5}px;height:${H + 1.5}px">${cells}</div></div>`}
     </section>`);
   });
   sheet.innerHTML = parts.length
@@ -2946,15 +2959,17 @@ document.getElementById("planSave").onclick = async ()=>{
    3D 조감도 — 동마다 층을 상자로 쌓고, 공간은 공간 구분 색으로 칠한 간단한 모형
    위치·방향은 리모델링 조감도를 보고 잡은 대략값 (SITE_3D). 지하층은 땅 아래라 생략
 ========================================================= */
-// 한 칸(교실 하나) ≈ 9m 기준. 운동장(약 100×60m)은 11×7칸, 트랙은 15×10칸쯤
-const SITE_3D = {          // 건물 가운데 위치 — x: 오른쪽, z: 앞(운동장 쪽). rot: 건물이 놓인 방향(도)
-  W: { x: -8,  z: -9,   rot: 0 },    // 서관: 운동장 뒤 가운데 5층 건물
-  V: { x: 5.5, z: -9.5, rot: 0 },    // 비전관: 서관과 창조관 사이 낮은 건물
-  C: { x: 20,  z: -11,  rot: 0 },    // 창조관: 오른쪽 뒤 가장 높은 건물
-  E: { x: 26,  z: 1,    rot: 90 },   // 동관: 운동장 오른쪽(동쪽)
-  D: { x: -20, z: 1,    rot: 0 },    // 덕영관: 운동장 왼쪽
+// 학교 안내 조감도(건물 이름이 적힌 그림) 기준 배치. 한 칸(교실 하나) ≈ 9m, 운동장은 12×7칸·트랙 15×10칸쯤
+//   비전관이 운동장 쪽에 길게, 그 뒤로 창조관이 나란히, 두 건물의 오른쪽 끝을 동관이 잇고,
+//   서관은 비전관 왼쪽 끝에 붙어 안뜰 뒤에, 덕영관(체육관)은 트랙 왼쪽 앞에
+const SITE_3D = {          // 건물 가운데 위치 — x: 오른쪽(동), z: 앞(남, 운동장 쪽). rot: 건물이 놓인 방향(도)
+  V: { x: 11.5, z: 0,    rot: 0 },    // 비전관: 운동장 쪽 긴 건물
+  C: { x: 10.5, z: -6,   rot: 0 },    // 창조관: 비전관 뒤에 나란히, 가장 높음
+  E: { x: 19,   z: -3,   rot: 90 },   // 동관: 창조관·비전관 오른쪽 끝을 잇는 짧은 건물
+  W: { x: 0.5,  z: -3.5, rot: 0 },    // 서관: 비전관 왼쪽 끝, 안뜰 뒤
+  D: { x: -9,   z: 5,    rot: 0 },    // 덕영관: 트랙 왼쪽 끝 옆 체육관
 };
-const FIELD_3D = { x: 2, z: 3 };
+const FIELD_3D = { x: 4, z: 9 };
 const FLOOR_H = 0.62, DEPTH = 1.8;   // 층 높이·건물 깊이 (칸 너비 1 기준, 보기 좋게 실제보다 조금 크게)
 let threePromise = null, v3d = null;
 function loadScript(src){
@@ -3047,7 +3062,7 @@ function v3dHome(){
   const vfov = v3d.camera.fov * Math.PI / 180;
   const hfov = 2 * Math.atan(Math.tan(vfov / 2) * v3d.camera.aspect);
   const dist = radius / Math.tan(Math.min(vfov, hfov) / 2) * (v3d.camera.aspect > 1 ? 0.68 : 0.95);   // 가로 화면은 대각선 여유가 있어 더 가깝게
-  const dir = new THREE.Vector3(-0.15, 0.62, 0.77).normalize();
+  const dir = new THREE.Vector3(-0.5, 0.6, 0.62).normalize();   // 안내 조감도처럼 왼쪽 앞 위에서
   v3d.controls.target.copy(center).setY(1);
   v3d.camera.position.copy(center).addScaledVector(dir, dist);
   v3d.controls.update();
