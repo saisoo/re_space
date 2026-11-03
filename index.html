@@ -4,10 +4,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>덕영고 공간재구조화 인터랙티브 시뮬레이터</title>
+<!-- 글꼴: Pretendard 가변 글꼴(굵기 하나로 모든 두께) — 화면에 쓰인 글자 조각만 내려받음.
+     예전 정적 Pretendard(CSS 540KB, 글꼴 828벌)는 느려서 뺐고, 이 가변판은 CSS가 작고 글꼴 수도 1/9 수준.
+     화면을 막지 않게 뒤에서 불러오고, 오기 전까지는 기기 글꼴로 보임 -->
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css" media="print" onload="this.media='all'">
 <style>
-  /* 웹폰트를 내려받지 않고 기기에 이미 있는 한글 글꼴을 사용 (Pretendard 웹폰트는 CSS만 540KB·글꼴 조각 수백 개라
-     첫 로딩과 화면 반응이 크게 느려졌음). 기기에 Pretendard가 설치돼 있으면 그대로 사용됨 */
-  * { font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Malgun Gothic', 'Noto Sans KR', sans-serif; }
+  * { font-family: 'Pretendard Variable', 'Pretendard', -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Malgun Gothic', 'Noto Sans KR', sans-serif; }
 
   /* 가로 칸이 많거나 크게 보기면 밀어서(스크롤) 봄. 스크롤바가 생겼다 사라지며 칸 크기가 흔들리지 않도록 자리 고정 */
   #canvasWrap { overflow: auto; scrollbar-gutter: stable; background-color: #fafbfd; }
@@ -60,7 +63,7 @@
   .room-block.dragging { cursor: grabbing; z-index: 40; opacity: .9; }
   .room-block.lifted { transform: scale(1.06); box-shadow: 0 8px 18px rgba(15,23,42,.3); z-index: 40; }
   .room-block.fixedBlock { cursor: not-allowed; }
-  .room-block .name { max-width:100%; font-weight: 700; font-size: var(--nameFs, 11px); line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .room-block .name { max-width:100%; font-weight: 800; letter-spacing: -0.02em; font-size: var(--nameFs, 11px); line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   /* 5글자 이상 이름은 두 줄로 나눠 표시 (splitName) — 줄마다 넘치면 … 처리 */
   .room-block .name { text-align: center; }
   .room-block .name .ln { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
