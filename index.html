@@ -3533,22 +3533,31 @@ function pushLiveChanges(){
       .catch(err=>{ if(err && err.code === "invalid_argument"){ toast("보기 권한만 있어 공동 편집 내용을 올릴 수 없어요."); setCoEdit(false); } });
   });
 }
+// 받은 동 배치를 우리 모양(normalizeState)으로 맞춘 뒤 내용으로 비교함.
+// Supabase(jsonb)는 저장할 때 객체의 키 순서를 바꿔서, 받은 글자 그대로 비교하면 내용이 같아도 '바뀜'으로 보여
+// 기기끼리 같은 배치를 계속 주고받으며 '수정되었습니다' 알림이 반복됐음
 function applyLiveDoc(z, data){
   if(!data || !data.zone || !ZONE_META[z]) return false;
-  const json = JSON.stringify({ rows: data.zone.rows, cols: data.zone.cols, floors: data.zone.floors, blocks: data.zone.blocks });
-  if(liveSynced[z] === json) return false;
-  liveSynced[z] = json;
-  const one = {}; one[z] = JSON.parse(json);
-  state[z] = normalizeState(migrateState(one, data.v || DATA_VERSION))[z];
+  const one = {}; one[z] = JSON.parse(JSON.stringify({ rows: data.zone.rows, cols: data.zone.cols, floors: data.zone.floors, blocks: data.zone.blocks }));
+  const next = normalizeState(migrateState(one, data.v || DATA_VERSION))[z];
+  const json = JSON.stringify({ rows: next.rows, cols: next.cols, floors: next.floors, blocks: next.blocks });
+  if(state[z] && zoneJSON(z) === json){ liveSynced[z] = json; return false; }   // 내 화면과 같음 → 바꿀 것도, 알릴 것도 없음
+  state[z] = next;
   syncIdSeq();
+  liveSynced[z] = zoneJSON(z);
   return true;
+}
+// 받침이 있으면 '이', 없으면 '가' (창조관이 / 모듈러가)
+function withJosa(word, a, b){
+  const c = String(word).charCodeAt(String(word).length - 1);
+  return word + (c >= 0xAC00 && c <= 0xD7A3 && (c - 0xAC00) % 28 ? a : b);
 }
 function remoteEditToast(z, by){
   if(by && by === myId) return;
   const now = Date.now();
   if(lastRemoteToast[z] && now - lastRemoteToast[z] < 6000) return;
   lastRemoteToast[z] = now;
-  toast(`${ZONE_META[z].name}이 수정되었습니다.`);
+  toast(`${withJosa(ZONE_META[z].name, "이", "가")} 수정되었습니다.`);
 }
 // opts.resume: 페이지를 다시 열 때 이어서 켜는 경우 — 이미 함께 편집하던 화면이므로 묻지 않고 온라인 배치를 받음
 async function setCoEdit(on, opts){
