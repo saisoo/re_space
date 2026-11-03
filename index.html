@@ -66,7 +66,7 @@
   .room-block .name .ln { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   /* 반칸 공간: 폭이 좁아 글자를 조금 작게, 글자 단위로 줄바꿈 */
   .room-block.halfBlock { padding: 2px 2px; }
-  .room-block.halfBlock .name { font-size: calc(var(--nameFs, 11px) - 1px); white-space: normal; overflow-wrap: anywhere; line-height: 1.15; }
+  .room-block.halfBlock .name { font-size: calc(var(--nameFs, 11px) - 1px); white-space: normal; word-break: keep-all; overflow-wrap: anywhere; line-height: 1.15; }
   .room-block.halfBlock .name .ln { white-space: normal; text-overflow: clip; }
   .room-block .num { max-width:100%; font-size: 9px; opacity: .6; line-height: 1.1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .room-block .badge { flex-shrink:0; font-size:8px; font-weight:800; letter-spacing:.02em; line-height:1.3; padding:0 4px; margin-bottom:1px; border-radius:4px; background:rgba(15,23,42,.14); color:#334155; }
@@ -1588,39 +1588,67 @@ function scrollBlockIntoView(id){
 }
 
 /* ---- 이름 두 줄 나누기 ----
-   5글자 이상이면 두 줄로: 반으로 나누되 윗줄이 같거나 짧게 (5자 2/3, 6자 3/3, 7자 3/4 …), 4글자까지는 한 줄.
-   가운데 근처(±2자)에 띄어쓰기·'('·'/'·영문↔한글 경계가 있으면 거기서 나눔
-   (예: 화장실/(남), 북카페//도서관, SW/실습실, 그래픽/SW부) */
+   5글자 이상이면 두 줄로, 4글자까지는 한 줄. 단어 사이에서만 나눔 — 가운데에 가장 가까운 자리를 고름.
+   나누는 자리: 띄어쓰기, '(' 앞, '/' 뒤, 영문↔한글 경계, 아래 낱말 목록의 앞뒤
+   (예: 스마트/교실, 메이커/스페이스1, 화장실/(여), SW/실습실1). 한 글자만 남게 되면 나누지 않음 (스페이스X, 바리스타실) */
+const NAME_WORDS = ["스마트","교실","교무실","본교무실","메이커","스페이스","멀티","미디어실","다목적","회의실","학부모",
+  "바리스타","디지털","스튜디오","학생","자치실","시험","보관고","과학","준비실","학습실","탕비실","기자재실","물탱크실",
+  "세미나실","전시홀","휴게실","화장실","위클래스","상담실","아트랩","미술실","인쇄실","성적처리실","도서관","북카페",
+  "경영","회계","디자인","보건","그래픽","교정부","컴사부","행정실","법인실","문서고","기계설비","덕영","광장","공용실",
+  "특별실","외국어실","보일러실","엘리베이터","교장실","학폭실","학생부","양호실"];
 function isLatin(c){ return /[A-Za-z]/.test(c); }
 function isHangul(c){ return /[가-힣]/.test(c); }
 function splitName(name){
   const ch = Array.from(String(name || "").trim());
-  if(ch.length < 5) return null; // 4글자까지는 한 줄 (경영회계, 덕영광장)
+  const n = ch.length;
+  if(n < 5) return null; // 4글자까지는 한 줄 (경영회계, 덕영광장)
+  const s = ch.join("");
   // '…실습실'은 항상 '실습실' 앞에서 나눔 (보건 / 실습실1, 디자인 / 실습실1, SW / 실습실1)
-  const sIdx = ch.join("").indexOf("실습실");
+  const sIdx = s.indexOf("실습실");
   if(sIdx >= 2) return [ch.slice(0, sIdx).join("").trim(), ch.slice(sIdx).join("").trim()];
-  const mid = Math.floor(ch.length / 2);
-  let best = null;
-  ch.forEach((c, i)=>{
-    let cut = null;
-    if(c === " ") cut = i;            // 띄어쓰기에서 (공백은 버림)
-    else if(c === "(") cut = i;       // 괄호 앞에서
-    else if(c === "/") cut = i + 1;   // 슬래시 뒤에서
-    else if(i > 0 && isLatin(ch[i-1]) !== isLatin(c) && isHangul(ch[i-1]) !== isHangul(c)
-            && (isLatin(ch[i-1]) || isLatin(c))) cut = i; // 영문과 한글이 바뀌는 곳에서
-    if(cut === null || cut <= 0 || cut >= ch.length) return;
-    if(Math.abs(cut - mid) <= 2 && (best === null || Math.abs(cut - mid) < Math.abs(best - mid))) best = cut;
+  const inside = new Array(n + 1).fill(false);   // 이 자리에서 자르면 낱말이 쪼개짐
+  const cuts = new Set();
+  NAME_WORDS.forEach(w=>{
+    for(let k = s.indexOf(w); k >= 0; k = s.indexOf(w, k + 1)){
+      for(let i = k + 1; i < k + w.length; i++) inside[i] = true;
+      cuts.add(k); cuts.add(k + w.length);
+    }
   });
-  if(best === null && !ch.some(isHangul)) return null; // 영문만 있는 이름은 단어 중간에서 자르지 않음
-  const cut = best === null ? mid : best;
-  const a = ch.slice(0, cut).join("").trim(), b = ch.slice(cut).join("").trim();
+  // 괄호 안과 '/' 바로 앞에서는 자르지 않음 (아트랩/(미술실), 북카페//도서관)
+  let open = -1;
+  ch.forEach((c, i)=>{
+    if(c === "(") open = i;
+    else if(c === ")" && open >= 0){ for(let k = open + 1; k <= i; k++) inside[k] = true; open = -1; }
+    else if(c === "/") inside[i] = true;
+  });
+  ch.forEach((c, i)=>{
+    if(c === " " || c === "(") cuts.add(i);   // 띄어쓰기·괄호 앞에서 (공백은 버림)
+    else if(c === "/") cuts.add(i + 1);       // 슬래시 뒤에서
+    else if(i > 0 && isLatin(ch[i-1]) !== isLatin(c) && isHangul(ch[i-1]) !== isHangul(c)
+            && (isLatin(ch[i-1]) || isLatin(c))) cuts.add(i); // 영문과 한글이 바뀌는 곳에서
+  });
+  const mid = Math.floor(n / 2);
+  let best = null;
+  cuts.forEach(cut=>{
+    if(cut <= 0 || cut >= n || inside[cut]) return;
+    const a = ch.slice(0, cut).join("").trim(), b = ch.slice(cut).join("").trim();
+    if(Array.from(a).length < 2 || Array.from(b).length < 2) return;
+    if(best === null || Math.abs(cut - mid) < Math.abs(best - mid)) best = cut;
+  });
+  // 나눌 자리가 없으면 한 줄로 — 아주 긴 한글 이름만 가운데에서 나눔
+  if(best === null) best = n >= 7 && ch.some(isHangul) ? mid : null;
+  if(best === null) return null;
+  const a = ch.slice(0, best).join("").trim(), b = ch.slice(best).join("").trim();
   return a && b ? [a, b] : null;
 }
+// 이름 한 줄의 대략적인 너비(글자 크기 배수): 한글 1, 영문·숫자·기호 0.62
+function nameEm(text){ return Array.from(String(text)).reduce((s, c)=> s + (isHangul(c) ? 1 : 0.62), 0); }
 function nameHtml(name){
   const parts = CELL_H >= 36 ? splitName(name) : null; // 칸이 아주 낮으면 두 줄이 잘리므로 한 줄로
   return parts ? `<span class="ln">${esc(parts[0])}</span><span class="ln">${esc(parts[1])}</span>` : esc(name);
 }
 
+let canvasNameFs = 11;
 const ZOOM_STEPS = [0.6, 0.75, 0.9, 1, 1.25, 1.5, 1.75, 2];
 function renderZoom(){
   document.getElementById("zoomValue").textContent = Math.round(cellZoom * 100) + "%";
@@ -1745,7 +1773,8 @@ function renderCanvas(opts){
   canvasEl.style.height = (zs.rows*CELL_H) + "px";
   canvasEl.style.backgroundSize = CELL_W + "px " + CELL_H + "px";
   // 칸 크기에 맞춰 글자 크기 조절
-  canvasEl.style.setProperty("--nameFs", Math.max(10, Math.min(14, Math.round(Math.min(CELL_W / 7, CELL_H / 4)))) + "px");
+  canvasNameFs = Math.max(10, Math.min(14, Math.round(Math.min(CELL_W / 7, CELL_H / 4))));
+  canvasEl.style.setProperty("--nameFs", canvasNameFs + "px");
   canvasEl.innerHTML = "";
   renderRowLabels(zs);
   renderPadCols(zs);
@@ -1806,6 +1835,14 @@ function renderCanvas(opts){
     div.style.top = (b.row*CELL_H+2) + "px";
     div.style.width = (b.w*CELL_W-6) + "px";
     div.style.height = (b.h*CELL_H-6) + "px";
+    // 이름의 가장 긴 줄이 칸에 다 들어가게 필요하면 글자를 줄임 (반 칸은 괄호·띄어쓰기로 나뉜 덩어리 기준)
+    {
+      const parts = b.w < 1 ? String(b.name).split(/[\s(/]+/) : (CELL_H >= 36 && splitName(b.name)) || [b.name];
+      const longest = Math.max(...parts.map(nameEm), 1);
+      const fit = Math.floor((b.w*CELL_W - 14) / longest);
+      const base = b.w < 1 ? canvasNameFs - 1 : canvasNameFs;
+      if(fit < base) div.style.setProperty("--nameFs", (Math.max(7, fit) + (b.w < 1 ? 1 : 0)) + "px");
+    }
     div.style.background = meta.color;
     div.style.borderColor = meta.border;
     div.dataset.id = b.id;
