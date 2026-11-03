@@ -2960,10 +2960,11 @@ window.addEventListener("hashchange", openSharedFromHash);
    실시간 연결 대신 몇 초마다 바뀐 것만 받아옴.
 ========================================================= */
 // 포트폴리오 사이트와 같은 Supabase 프로젝트의 주소와 공개(publishable/anon) 키 — 공개돼도 되는 값
-const SUPABASE_URL = (window.SPACE_SUPABASE_OVERRIDE && window.SPACE_SUPABASE_OVERRIDE.url) || "";
-const SUPABASE_KEY = (window.SPACE_SUPABASE_OVERRIDE && window.SPACE_SUPABASE_OVERRIDE.key) || "";
+const SUPABASE_URL = (window.SPACE_SUPABASE_OVERRIDE && window.SPACE_SUPABASE_OVERRIDE.url) || "https://zmhatzsmkgjfodvgfcnc.supabase.co";
+const SUPABASE_KEY = (window.SPACE_SUPABASE_OVERRIDE && window.SPACE_SUPABASE_OVERRIDE.key) || "sb_publishable_ZVmsUPuzdG_KVhu-sPu3Jw_9E3hGGFG";
 function supabaseApi(base, key){
-  const headers = { apikey: key, Authorization: "Bearer " + key, "Content-Type": "application/json" };
+  // 새 공개 키(sb_publishable_…)는 apikey 머리말에만, 예전 anon 키(JWT)는 Authorization에도 넣음
+  const headers = Object.assign({ apikey: key, "Content-Type": "application/json" }, key.startsWith("eyJ") ? { Authorization: "Bearer " + key } : {});
   const toDoc = r=> ({ c: r.col, id: r.id, d: r.deleted ? null : r.data, u: Date.parse(r.updated_at) });
   return {
     async since(t){
@@ -2999,7 +3000,7 @@ function deviceId(){
 function makeRemoteDb(api){
   const cache = {};          // 컬렉션 → Map(id → {data, deleted, u(서버 시각), rev, pending})
   const subs = [];
-  let revSeq = 0, lastNow = 0, loaded = null, timer = null, polling = false, failures = 0;
+  let revSeq = 0, lastNow = 0, loaded = null, okOnce = false, timer = null, polling = false, failures = 0;
   const col = c=> cache[c] || (cache[c] = new Map());
   const autoId = ()=> Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
   const mkDoc = (id, data)=> ({ id, exists: true, data: ()=> data });
@@ -3025,7 +3026,7 @@ function makeRemoteDb(api){
     if(s.limit) docs = docs.slice(0, s.limit);
     try{ s.cb({ docs, docChanges: ()=> changes }); }catch(e){ console.error(e); }
   }
-  const notify = ()=>{ if(loaded) subs.forEach(fire); };
+  const notify = ()=>{ if(okOnce) subs.forEach(fire); };   // 한 번도 못 받았으면 '비어 있음'으로 알리지 않음
   async function poll(){
     if(polling) return;
     polling = true;
@@ -3038,6 +3039,7 @@ function makeRemoteDb(api){
         m.set(x.id, { data: x.d, deleted: x.d === null, u: x.u, rev: ++revSeq, pending: 0 });
       });
       lastNow = j.now || lastNow;
+      okOnce = true;
       if(failures >= 3) toast("온라인 저장소에 다시 연결됐어요.");
       failures = 0;
     }catch(e){
@@ -3080,7 +3082,12 @@ function makeRemoteDb(api){
         start().then(()=> fire(s));
         return ()=>{ const i = subs.indexOf(s); if(i >= 0) subs.splice(i, 1); };
       },
-      async get(){ await start(); return { docs: liveDocs(c) }; },
+      async get(){
+        await start();
+        if(!okOnce) await poll();
+        if(!okOnce) throw new Error("not loaded");   // 못 받은 채 빈 것으로 여기면 남의 배치를 덮어쓸 수 있음
+        return { docs: liveDocs(c) };
+      },
     };
   }
   return {
@@ -3283,7 +3290,11 @@ async function setCoEdit(on, opts){
   // 켤 때: 이미 함께 편집 중인 배치가 있으면 그것을 받아오고, 내 배치는 '저장한 배치'에 보관
   let existing = [];
   try{ existing = (await onlineDb.collection("live").get()).docs.filter(d=> d.exists && ZONE_META[d.id]); }
-  catch(err){ toast("공동 편집을 시작하지 못했어요. 잠시 후 다시 시도해 주세요."); return; }
+  catch(err){
+    if(!opts.retry) toast("공동 편집 배치를 받아오지 못했어요. 연결되면 자동으로 이어져요.");
+    if(opts.resume) setTimeout(()=>{ if(!coEdit) setCoEdit(true, Object.assign({}, opts, { retry: true })); }, 5000);
+    return;
+  }
   const hadWork = Object.values(state).some(zs=> zs.blocks.length > 0);
   if(existing.length && hadWork && !opts.resume){
     const ok = await askConfirm("공동 편집으로 돌아가면 모두가 함께 편집 중인 배치가 보여요.\n개별 편집한 내 배치는 '저장 · 공유 → 저장한 배치'에 보관돼요.", "공동 편집으로");
